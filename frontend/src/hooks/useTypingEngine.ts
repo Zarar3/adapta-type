@@ -32,6 +32,7 @@ interface EngineState {
   focusedPattern: string | null;          // set during a single-pattern practice session
   difficultyLevel: number;                // 1–4, increases as user improves
   difficultyHistory: DifficultyChange[];  // when difficulty changed during the test
+  showLineHint: boolean;                  // true until the first line is completed
   perfectWordStreak: number;              // consecutive fully-correct words
   currentWordHadError: boolean;           // any wrong key this word, even if backspaced
   correctChars: number;
@@ -116,6 +117,7 @@ function buildInitialState(duration: TimedMode): EngineState {
     focusedPattern: null,
     difficultyLevel: 1,
     difficultyHistory: [],
+    showLineHint: true,
     perfectWordStreak: 0,
     currentWordHadError: false,
     correctChars: 0,
@@ -297,6 +299,7 @@ export function useTypingEngine() {
           return {
             ...next,
             ...shared,
+            showLineHint: false,
             line: makeLineData(generateLine(lineNgrams, wordsPerLine(next.duration), newDifficulty)),
             currentWord: 0,
             currentChar: 0,

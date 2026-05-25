@@ -19,6 +19,7 @@ interface Props {
   ngramStreaks: Record<string, number>;
   difficultyLevel: number;
   focusedPattern: string | null;
+  showLineHint: boolean;
   onKeyDown: (e: KeyboardEvent) => void;
   onChangeDuration: (d: TimedMode) => void;
 }
@@ -27,7 +28,7 @@ const DIFFICULTY_LABELS = ['', 'easy', 'medium', 'hard', 'expert'];
 
 export function TypingArea({
   testState, timeLeft, duration, line,
-  currentWord, currentChar, ngrams, ngramStreaks, difficultyLevel, focusedPattern, onKeyDown, onChangeDuration,
+  currentWord, currentChar, ngrams, ngramStreaks, difficultyLevel, focusedPattern, showLineHint, onKeyDown, onChangeDuration,
 }: Props) {
   const focusPatterns = focusedPattern
     ? []
@@ -112,6 +113,13 @@ export function TypingArea({
           activeChar={currentChar}
         />
       </div>
+
+      {showLineHint && (
+        <div className="flex items-center gap-2 mt-4 justify-end">
+          <span className="text-gray-600 text-xs">press space at end of line to continue</span>
+          <span className="text-yellow-400 text-lg animate-bounce">→</span>
+        </div>
+      )}
     </div>
   );
 }
