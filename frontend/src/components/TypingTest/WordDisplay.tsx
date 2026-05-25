@@ -42,8 +42,8 @@ export function WordDisplay({ words, charStates, isActive, activeWord, activeCha
         </span>
       ))}
       {showHint && (
-        <span className="inline-flex flex-col items-center self-center animate-bounce-x">
-          <span className="text-yellow-400 text-2xl leading-none">→</span>
+        <span className="inline-flex flex-col items-center self-center -ml-4">
+          <span className="text-yellow-400 text-2xl leading-none animate-bounce-x">→</span>
           <span className="text-gray-600 text-xs mt-0.5">space</span>
         </span>
       )}
