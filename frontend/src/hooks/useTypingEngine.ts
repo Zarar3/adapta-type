@@ -268,29 +268,26 @@ export function useTypingEngine() {
 
         const isLastWord = currentWord === line.words.length - 1;
 
+        // Record every difficulty change (up or down), mid-line or at line boundary
+        const updatedDifficultyHistory = newDifficulty !== next.difficultyLevel
+          ? [...next.difficultyHistory, { t: next.duration - next.timeLeft, level: newDifficulty }]
+          : next.difficultyHistory;
+
         const shared = {
           ngrams: updatedNgrams,
           ngramStreaks: updatedStreaks,
           ngramGraduated: updatedGraduated,
           ngramStats: updatedStats,
           difficultyLevel: newDifficulty,
+          difficultyHistory: updatedDifficultyHistory,
           perfectWordStreak: adjustedStreak,
           currentWordHadError: false,
         };
 
         if (isLastWord) {
-          // Record when user starts a line generated at a new difficulty level
-          const lastLevel = next.difficultyHistory.length > 0
-            ? next.difficultyHistory[next.difficultyHistory.length - 1].level
-            : 1;
-          const lineHistory = newDifficulty !== lastLevel
-            ? [...next.difficultyHistory, { t: next.duration - next.timeLeft, level: newDifficulty }]
-            : next.difficultyHistory;
-
           return {
             ...next,
             ...shared,
-            difficultyHistory: lineHistory,
             line: makeLineData(generateLine(updatedNgrams, wordsPerLine(next.duration), newDifficulty)),
             currentWord: 0,
             currentChar: 0,
