@@ -267,10 +267,6 @@ export function useTypingEngine() {
           updateStreaks(word, wordStates, ngramsAfterPromotion, next.ngramStreaks, next.ngramGraduated, next.ngramStats);
 
         const isLastWord = currentWord === line.words.length - 1;
-        const difficultyChanged = newDifficulty !== next.difficultyLevel;
-        const newDifficultyHistory = difficultyChanged
-          ? [...next.difficultyHistory, { t: next.duration - next.timeLeft, level: newDifficulty }]
-          : next.difficultyHistory;
 
         const shared = {
           ngrams: updatedNgrams,
@@ -278,15 +274,23 @@ export function useTypingEngine() {
           ngramGraduated: updatedGraduated,
           ngramStats: updatedStats,
           difficultyLevel: newDifficulty,
-          difficultyHistory: newDifficultyHistory,
           perfectWordStreak: adjustedStreak,
           currentWordHadError: false,
         };
 
         if (isLastWord) {
+          // Record when user starts a line generated at a new difficulty level
+          const lastLevel = next.difficultyHistory.length > 0
+            ? next.difficultyHistory[next.difficultyHistory.length - 1].level
+            : 1;
+          const lineHistory = newDifficulty !== lastLevel
+            ? [...next.difficultyHistory, { t: next.duration - next.timeLeft, level: newDifficulty }]
+            : next.difficultyHistory;
+
           return {
             ...next,
             ...shared,
+            difficultyHistory: lineHistory,
             line: makeLineData(generateLine(updatedNgrams, wordsPerLine(next.duration), newDifficulty)),
             currentWord: 0,
             currentChar: 0,

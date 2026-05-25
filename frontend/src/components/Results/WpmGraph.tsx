@@ -5,6 +5,7 @@ import {
 import type { WpmDataPoint, DifficultyChange } from '../../types';
 
 const DIFFICULTY_LABELS: Record<number, string> = { 1: 'easy', 2: 'medium', 3: 'hard', 4: 'expert' };
+const DIFFICULTY_COLORS: Record<number, string> = { 1: '#4ade80', 2: '#facc15', 3: '#fb923c', 4: '#f87171' };
 
 interface Props {
   data: WpmDataPoint[];
@@ -74,9 +75,10 @@ export function WpmGraph({ data, duration, difficultyHistory }: Props) {
             key={t}
             x={t}
             yAxisId="wpm"
-            stroke="#6b7280"
+            stroke={DIFFICULTY_COLORS[level]}
             strokeDasharray="4 2"
-            label={{ value: DIFFICULTY_LABELS[level], position: 'top', fill: '#9ca3af', fontSize: 10 }}
+            strokeOpacity={0.7}
+            label={{ value: DIFFICULTY_LABELS[level], position: 'top', fill: DIFFICULTY_COLORS[level], fontSize: 10 }}
           />
         ))}
         <Bar yAxisId="errors" dataKey="errors" name="errors" fill="#ef4444" opacity={0.5} barSize={6} />
