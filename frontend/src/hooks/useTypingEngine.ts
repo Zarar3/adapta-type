@@ -244,10 +244,7 @@ export function useTypingEngine() {
         return next;
       }
 
-      if (e.key === ' ') {
-        // Ignore space if not at the end of the current word
-        if (currentChar < word.length) return next;
-
+      if (e.key === ' ' && currentChar === word.length) {
         const wordStates = line.charStates[currentWord];
         const wordErrors = wordStates.filter(s => s === 'incorrect').length;
 
