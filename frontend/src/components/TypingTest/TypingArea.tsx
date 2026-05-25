@@ -43,7 +43,7 @@ export function TypingArea({
 
   return (
     <div
-      className="w-full max-w-4xl mx-auto cursor-text"
+      className="w-full max-w-5xl mx-auto cursor-text"
       onClick={() => inputRef.current?.focus()}
     >
       {/* Hidden input captures keyboard events */}
@@ -103,7 +103,7 @@ export function TypingArea({
         </div>
       )}
 
-      <div className="select-none max-w-3xl">
+      <div className="select-none">
         <WordDisplay
           words={line.words}
           charStates={line.charStates}
