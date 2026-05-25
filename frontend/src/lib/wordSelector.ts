@@ -37,19 +37,20 @@ function shuffle<T>(arr: T[]): T[] {
 
 function wordTypingScore(word: string): number {
   if (word.length === 0) return 0;
-  let total = 0;
+  let keyTotal = 0;
   for (let i = 0; i < word.length; i++) {
-    total += KEY_SCORE[word[i]] ?? 1.5;
+    keyTotal += KEY_SCORE[word[i]] ?? 1.5;
     if (
       i > 0 &&
       FINGER[word[i]] !== undefined &&
       FINGER[word[i - 1]] !== undefined &&
       FINGER[word[i]] === FINGER[word[i - 1]]
     ) {
-      total += SAME_FINGER_PENALTY;
+      keyTotal += SAME_FINGER_PENALTY;
     }
   }
-  return total / word.length;
+  // 60% key difficulty (sum), 40% word length — so harder AND longer words rank higher
+  return keyTotal * 0.6 + word.length * 0.4;
 }
 
 const _scored = WORD_LIST.map(w => [w, wordTypingScore(w)] as [string, number])
