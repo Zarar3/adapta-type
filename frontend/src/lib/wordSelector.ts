@@ -9,6 +9,17 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+/** Minimum number of words in the list that must contain a pattern for it to be worth promoting. */
+const MIN_PRACTICE_WORDS = 5;
+
+export function hasSufficientCoverage(pattern: string): boolean {
+  let count = 0;
+  for (const w of WORD_LIST) {
+    if (w.includes(pattern)) { count++; if (count >= MIN_PRACTICE_WORDS) return true; }
+  }
+  return false;
+}
+
 /** Word length range per difficulty level (1–4). */
 function difficultyRange(level: number): [number, number] {
   if (level <= 1) return [3, 5];

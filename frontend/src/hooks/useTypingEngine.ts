@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { generateLine } from '../lib/wordSelector';
+import { generateLine, hasSufficientCoverage } from '../lib/wordSelector';
 import { updateNgramStats, promoteNgrams } from '../lib/ngramTracker';
 import type { NgramStats } from '../lib/ngramTracker';
 import { calcWpm, calcRawWpm, calcAccuracy } from '../lib/statsCalculator';
@@ -261,8 +261,12 @@ export function useTypingEngine() {
         if (newStreak >= 5 && newDifficulty < 4) { newDifficulty += 1; adjustedStreak = 0; }
         if (wordErrors > 2 && newDifficulty > 1) { newDifficulty -= 1; adjustedStreak = 0; }
 
-        // Promote bigrams/trigrams that now meet the error threshold
-        const ngramsAfterPromotion = promoteNgrams(word, next.ngramStats, next.ngrams, next.ngramGraduated);
+        // Promote bigrams/trigrams that now meet the error threshold, then drop any
+        // patterns with too few words in the list to be worth practising
+        const promoted = promoteNgrams(word, next.ngramStats, next.ngrams, next.ngramGraduated);
+        const ngramsAfterPromotion = Object.fromEntries(
+          Object.entries(promoted).filter(([ng]) => hasSufficientCoverage(ng))
+        );
 
         // Update streaks, graduate mastered patterns, clear them from ngramStats
         const { ngrams: updatedNgrams, ngramStreaks: updatedStreaks, ngramGraduated: updatedGraduated, ngramStats: updatedStats } =
