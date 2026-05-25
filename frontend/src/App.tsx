@@ -5,6 +5,7 @@ import { ResultsScreen } from './components/Results/ResultsScreen';
 import { PatternWall } from './components/PatternWall/PatternWall';
 import { useTypingEngine } from './hooks/useTypingEngine';
 import { usePatternLibrary } from './hooks/usePatternLibrary';
+import type { TimedMode } from './types';
 
 export default function App() {
   const { state, handleKeyDown, reset, changeDuration, startFocusedSession } = useTypingEngine();
@@ -34,8 +35,8 @@ export default function App() {
     prevTestStateRef.current = state.testState;
   }, [state.testState, state.results, state.focusedPattern, addFromSession, markCompleted]);
 
-  const handlePracticePattern = useCallback((pattern: string) => {
-    startFocusedSession(pattern);
+  const handlePracticePattern = useCallback((pattern: string, duration: TimedMode) => {
+    startFocusedSession(pattern, duration);
     setView('typing');
   }, [startFocusedSession]);
 

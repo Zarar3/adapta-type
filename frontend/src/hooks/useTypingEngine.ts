@@ -346,18 +346,17 @@ export function useTypingEngine() {
     setState(buildInitialState(d));
   }, [stopTicker]);
 
-  const startFocusedSession = useCallback((pattern: string) => {
+  const startFocusedSession = useCallback((pattern: string, dur: TimedMode) => {
     stopTicker();
     secondCountRef.current = 0;
     startTimeRef.current = null;
-    const focusedDuration: TimedMode = 30;
     const focusNgrams = { [pattern]: 5 };
-    setDuration(focusedDuration);
+    setDuration(dur);
     setState({
-      ...buildInitialState(focusedDuration),
+      ...buildInitialState(dur),
       focusedPattern: pattern,
       ngrams: focusNgrams,
-      line: makeLineData(generateLine(focusNgrams, wordsPerLine(focusedDuration))),
+      line: makeLineData(generateLine(focusNgrams, wordsPerLine(dur))),
     });
   }, [stopTicker]);
 

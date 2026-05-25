@@ -1,14 +1,18 @@
+import { useState } from 'react';
 import { StatsBar } from './StatsBar';
 import { WpmGraph } from './WpmGraph';
-import type { TestResults } from '../../types';
+import type { TestResults, TimedMode } from '../../types';
+
+const MODES: TimedMode[] = [15, 30, 60, 120];
 
 interface Props {
   results: TestResults;
   onRestart: () => void;
-  onPracticePattern: (pattern: string) => void;
+  onPracticePattern: (pattern: string, duration: TimedMode) => void;
 }
 
 export function ResultsScreen({ results, onRestart, onPracticePattern }: Props) {
+  const [pickingPattern, setPickingPattern] = useState<string | null>(null);
   return (
     <div className="w-full max-w-4xl mx-auto animate-fade-in">
       <StatsBar
@@ -35,15 +39,29 @@ export function ResultsScreen({ results, onRestart, onPracticePattern }: Props) 
                 <p className="text-xs text-gray-600 mb-2">still struggling <span className="text-gray-700">— click to practice</span></p>
                 <div className="flex flex-wrap gap-2">
                   {struggled.map(([ng, count]) => (
-                    <button
-                      key={ng}
-                      onClick={() => onPracticePattern(ng)}
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-red-400/10 border border-red-400/20 hover:bg-red-400/25 hover:border-red-400/40 transition-colors cursor-pointer"
-                      title={`30s practice session focused on "${ng}"`}
-                    >
-                      <span className="font-mono text-red-300 text-sm">{ng}</span>
-                      <span className="text-red-500 text-xs">×{count}</span>
-                    </button>
+                    <div key={ng}>
+                      {pickingPattern === ng ? (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-red-400/15 border border-red-400/40">
+                          <span className="font-mono text-red-300 text-sm">{ng}</span>
+                          <span className="text-gray-600 text-xs mx-1">→</span>
+                          {MODES.map(m => (
+                            <button key={m} onClick={() => onPracticePattern(ng, m)}
+                              className="px-2 py-0.5 rounded text-xs font-mono bg-gray-800 text-gray-300 hover:bg-yellow-400 hover:text-gray-900 transition-colors">
+                              {m}s
+                            </button>
+                          ))}
+                          <button onClick={() => setPickingPattern(null)} className="text-xs text-gray-700 hover:text-gray-500 ml-1">✕</button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setPickingPattern(ng)}
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-red-400/10 border border-red-400/20 hover:bg-red-400/25 hover:border-red-400/40 transition-colors"
+                        >
+                          <span className="font-mono text-red-300 text-sm">{ng}</span>
+                          <span className="text-red-500 text-xs">×{count}</span>
+                        </button>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>
