@@ -18,6 +18,7 @@ interface Props {
   ngrams: Record<string, number>;
   ngramStreaks: Record<string, number>;
   difficultyLevel: number;
+  focusedPattern: string | null;
   onKeyDown: (e: KeyboardEvent) => void;
   onChangeDuration: (d: TimedMode) => void;
 }
@@ -26,12 +27,11 @@ const DIFFICULTY_LABELS = ['', 'easy', 'medium', 'hard', 'expert'];
 
 export function TypingArea({
   testState, timeLeft, duration, line,
-  currentWord, currentChar, ngrams, ngramStreaks, difficultyLevel, onKeyDown, onChangeDuration,
+  currentWord, currentChar, ngrams, ngramStreaks, difficultyLevel, focusedPattern, onKeyDown, onChangeDuration,
 }: Props) {
-  const focusPatterns = Object.entries(ngrams)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 5)
-    .map(([k]) => k);
+  const focusPatterns = focusedPattern
+    ? []
+    : Object.entries(ngrams).sort(([, a], [, b]) => b - a).slice(0, 5).map(([k]) => k);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {

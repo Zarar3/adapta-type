@@ -49,12 +49,8 @@ export function generateLine(
   const diffPool = WORD_LIST.filter(w => w.length >= minLen && w.length <= maxLen && hasPattern(w));
   const practicePool = diffPool.length >= count ? diffPool : WORD_LIST.filter(hasPattern);
 
-  if (practicePool.length >= count) {
-    return shuffle(practicePool).slice(0, count);
-  }
-
-  // Very rare patterns — use everything we have and pad with random words
-  const used = new Set(practicePool);
-  const filler = shuffle(WORD_LIST.filter(w => !used.has(w))).slice(0, count - practicePool.length);
-  return shuffle([...practicePool, ...filler]);
+  // Repeat from the practice pool until we have enough (allows duplicates for rare patterns)
+  const result: string[] = [];
+  while (result.length < count) result.push(...shuffle(practicePool));
+  return result.slice(0, count);
 }

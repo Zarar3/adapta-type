@@ -42,6 +42,7 @@ export default function App() {
             ngrams={state.ngrams}
             ngramStreaks={state.ngramStreaks}
             difficultyLevel={state.difficultyLevel}
+            focusedPattern={state.focusedPattern}
             onKeyDown={handleKeyDown}
             onChangeDuration={changeDuration}
           />

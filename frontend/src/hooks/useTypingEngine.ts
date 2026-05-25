@@ -29,6 +29,7 @@ interface EngineState {
   ngramStreaks: Record<string, number>;   // consecutive correct encounters per n-gram
   ngramGraduated: Record<string, number>; // patterns cleared during this test
   ngramStats: NgramStats;                 // per-keystroke bigram/trigram accuracy tally
+  focusedPattern: string | null;          // set during a single-pattern practice session
   difficultyLevel: number;                // 1–4, increases as user improves
   difficultyHistory: DifficultyChange[];  // when difficulty changed during the test
   perfectWordStreak: number;              // consecutive fully-correct words
@@ -112,6 +113,7 @@ function buildInitialState(duration: TimedMode): EngineState {
     ngramStreaks: {},
     ngramGraduated: {},
     ngramStats: {},
+    focusedPattern: null,
     difficultyLevel: 1,
     difficultyHistory: [],
     perfectWordStreak: 0,
@@ -285,10 +287,13 @@ export function useTypingEngine() {
         };
 
         if (isLastWord) {
+          const lineNgrams = next.focusedPattern
+            ? { [next.focusedPattern]: 5 }
+            : updatedNgrams;
           return {
             ...next,
             ...shared,
-            line: makeLineData(generateLine(updatedNgrams, wordsPerLine(next.duration), newDifficulty)),
+            line: makeLineData(generateLine(lineNgrams, wordsPerLine(next.duration), newDifficulty)),
             currentWord: 0,
             currentChar: 0,
           };
@@ -350,6 +355,7 @@ export function useTypingEngine() {
     setDuration(focusedDuration);
     setState({
       ...buildInitialState(focusedDuration),
+      focusedPattern: pattern,
       ngrams: focusNgrams,
       line: makeLineData(generateLine(focusNgrams, wordsPerLine(focusedDuration))),
     });
