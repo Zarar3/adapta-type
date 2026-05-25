@@ -341,6 +341,20 @@ export function useTypingEngine() {
     setState(buildInitialState(d));
   }, [stopTicker]);
 
+  const startFocusedSession = useCallback((pattern: string) => {
+    stopTicker();
+    secondCountRef.current = 0;
+    startTimeRef.current = null;
+    const focusedDuration: TimedMode = 30;
+    const focusNgrams = { [pattern]: 5 };
+    setDuration(focusedDuration);
+    setState({
+      ...buildInitialState(focusedDuration),
+      ngrams: focusNgrams,
+      line: makeLineData(generateLine(focusNgrams, wordsPerLine(focusedDuration))),
+    });
+  }, [stopTicker]);
+
   // Cleanup on unmount
   useEffect(() => () => stopTicker(), [stopTicker]);
 
@@ -349,5 +363,6 @@ export function useTypingEngine() {
     handleKeyDown,
     reset,
     changeDuration,
+    startFocusedSession,
   };
 }

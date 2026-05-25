@@ -5,9 +5,10 @@ import type { TestResults } from '../../types';
 interface Props {
   results: TestResults;
   onRestart: () => void;
+  onPracticePattern: (pattern: string) => void;
 }
 
-export function ResultsScreen({ results, onRestart }: Props) {
+export function ResultsScreen({ results, onRestart, onPracticePattern }: Props) {
   return (
     <div className="w-full max-w-4xl mx-auto animate-fade-in">
       <StatsBar
@@ -31,13 +32,18 @@ export function ResultsScreen({ results, onRestart }: Props) {
             <h3 className="text-gray-400 text-sm font-medium mb-4">pattern breakdown</h3>
             {struggled.length > 0 && (
               <div className="mb-4">
-                <p className="text-xs text-gray-600 mb-2">still struggling</p>
+                <p className="text-xs text-gray-600 mb-2">still struggling <span className="text-gray-700">— click to practice</span></p>
                 <div className="flex flex-wrap gap-2">
                   {struggled.map(([ng, count]) => (
-                    <div key={ng} className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-red-400/10 border border-red-400/20">
+                    <button
+                      key={ng}
+                      onClick={() => onPracticePattern(ng)}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-red-400/10 border border-red-400/20 hover:bg-red-400/25 hover:border-red-400/40 transition-colors cursor-pointer"
+                      title={`30s practice session focused on "${ng}"`}
+                    >
                       <span className="font-mono text-red-300 text-sm">{ng}</span>
                       <span className="text-red-500 text-xs">×{count}</span>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>

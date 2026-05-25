@@ -5,7 +5,7 @@ import { ResultsScreen } from './components/Results/ResultsScreen';
 import { useTypingEngine } from './hooks/useTypingEngine';
 
 export default function App() {
-  const { state, handleKeyDown, reset, changeDuration } = useTypingEngine();
+  const { state, handleKeyDown, reset, changeDuration, startFocusedSession } = useTypingEngine();
 
   // Tab + Enter to restart
   useEffect(() => {
@@ -30,7 +30,7 @@ export default function App() {
 
       <main className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         {state.testState === 'finished' && state.results ? (
-          <ResultsScreen results={state.results} onRestart={handleRestart} />
+          <ResultsScreen results={state.results} onRestart={handleRestart} onPracticePattern={startFocusedSession} />
         ) : (
           <TypingArea
             testState={state.testState}
