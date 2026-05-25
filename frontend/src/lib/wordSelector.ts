@@ -1,5 +1,31 @@
 import { WORD_LIST } from '../data/wordlist';
 
+const KEY_SCORE: Record<string, number> = {
+  // Home row
+  a: 1.0, s: 1.0, d: 1.0, f: 1.0, g: 1.3,
+  h: 1.3, j: 1.0, k: 1.0, l: 1.0,
+  // Top row
+  q: 1.8, w: 1.4, e: 1.2, r: 1.2, t: 1.5,
+  y: 1.5, u: 1.2, i: 1.2, o: 1.4, p: 1.8,
+  // Bottom row
+  z: 2.0, x: 1.8, c: 1.5, v: 1.5, b: 2.0,
+  n: 1.5, m: 1.5,
+};
+
+// 0=L-pinky 1=L-ring 2=L-middle 3=L-index 4=R-index 5=R-middle 6=R-ring 7=R-pinky
+const FINGER: Record<string, number> = {
+  q: 0, a: 0, z: 0,
+  w: 1, s: 1, x: 1,
+  e: 2, d: 2, c: 2,
+  r: 3, f: 3, v: 3, t: 3, g: 3, b: 3,
+  y: 4, h: 4, n: 4, u: 4, j: 4, m: 4,
+  i: 5, k: 5,
+  o: 6, l: 6,
+  p: 7,
+};
+
+const SAME_FINGER_PENALTY = 2.5;
+
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -9,7 +35,34 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-/** Minimum number of words in the list that must contain a pattern for it to be worth promoting. */
+function wordTypingScore(word: string): number {
+  if (word.length === 0) return 0;
+  let total = 0;
+  for (let i = 0; i < word.length; i++) {
+    total += KEY_SCORE[word[i]] ?? 1.5;
+    if (
+      i > 0 &&
+      FINGER[word[i]] !== undefined &&
+      FINGER[word[i - 1]] !== undefined &&
+      FINGER[word[i]] === FINGER[word[i - 1]]
+    ) {
+      total += SAME_FINGER_PENALTY;
+    }
+  }
+  return total / word.length;
+}
+
+const _scored = WORD_LIST.map(w => [w, wordTypingScore(w)] as [string, number])
+  .sort((a, b) => a[1] - b[1]);
+const _n = _scored.length;
+
+const DIFFICULTY_TIERS: string[][] = [
+  _scored.slice(0,                    Math.floor(_n * 0.30)).map(([w]) => w),
+  _scored.slice(Math.floor(_n * 0.30), Math.floor(_n * 0.60)).map(([w]) => w),
+  _scored.slice(Math.floor(_n * 0.60), Math.floor(_n * 0.80)).map(([w]) => w),
+  _scored.slice(Math.floor(_n * 0.80)                       ).map(([w]) => w),
+];
+
 const MIN_PRACTICE_WORDS = 5;
 
 export function hasSufficientCoverage(pattern: string): boolean {
@@ -20,47 +73,23 @@ export function hasSufficientCoverage(pattern: string): boolean {
   return false;
 }
 
-/** Word length range per difficulty level (1–4). */
-function difficultyRange(level: number): [number, number] {
-  if (level <= 1) return [3, 5];
-  if (level === 2) return [4, 7];
-  if (level === 3) return [5, 9];
-  return [6, 14];
-}
-
-/**
- * Generate one line of `count` words.
- *
- * With practice patterns:
- *   - Every word must contain at least one pattern.
- *   - If the difficulty-filtered pool doesn't have enough, fall back to the full list.
- *   - If even the full list can't fill the line, pad with random words.
- *
- * Without practice patterns:
- *   - Draw from the difficulty-appropriate word-length range (harder as level rises).
- */
 export function generateLine(
   ngrams: Record<string, number>,
   count = 12,
   difficulty = 1,
 ): string[] {
   const ngramKeys = Object.keys(ngrams);
-  const [minLen, maxLen] = difficultyRange(difficulty);
+  const tier = DIFFICULTY_TIERS[Math.min(Math.max(difficulty, 1), 4) - 1];
 
   if (ngramKeys.length === 0) {
-    // No patterns — just use difficulty-ranged random words
-    const pool = WORD_LIST.filter(w => w.length >= minLen && w.length <= maxLen);
-    const src = pool.length >= count ? pool : WORD_LIST;
+    const src = tier.length >= count ? tier : WORD_LIST;
     return shuffle(src).slice(0, count);
   }
 
   const hasPattern = (w: string) => ngramKeys.some(ng => w.includes(ng));
+  const tierPool = tier.filter(hasPattern);
+  const practicePool = tierPool.length >= count ? tierPool : WORD_LIST.filter(hasPattern);
 
-  // Prefer difficulty range; fall back to full list if too few pattern words
-  const diffPool = WORD_LIST.filter(w => w.length >= minLen && w.length <= maxLen && hasPattern(w));
-  const practicePool = diffPool.length >= count ? diffPool : WORD_LIST.filter(hasPattern);
-
-  // Cycle through all pattern words before repeating any — every word always contains the pattern
   const result: string[] = [];
   let cycle = shuffle([...practicePool]);
   let ci = 0;
