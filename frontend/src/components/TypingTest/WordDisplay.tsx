@@ -6,6 +6,7 @@ interface LineProps {
   isActive: boolean;
   activeWord: number;
   activeChar: number;
+  showHint?: boolean;
 }
 
 const stateClass: Record<CharState, string> = {
@@ -15,7 +16,7 @@ const stateClass: Record<CharState, string> = {
   extra: 'text-red-600',
 };
 
-export function WordDisplay({ words, charStates, isActive, activeWord, activeChar }: LineProps) {
+export function WordDisplay({ words, charStates, isActive, activeWord, activeChar, showHint }: LineProps) {
   return (
     <div className={`flex flex-wrap gap-x-6 gap-y-4 transition-opacity duration-150 leading-relaxed ${isActive ? 'opacity-100' : 'opacity-30'}`}>
       {words.map((word, wi) => (
@@ -40,6 +41,12 @@ export function WordDisplay({ words, charStates, isActive, activeWord, activeCha
           )}
         </span>
       ))}
+      {showHint && (
+        <span className="inline-flex flex-col items-center self-center animate-bounce-x">
+          <span className="text-yellow-400 text-2xl leading-none">→</span>
+          <span className="text-gray-600 text-xs mt-0.5">space</span>
+        </span>
+      )}
     </div>
   );
 }

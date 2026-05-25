@@ -111,15 +111,10 @@ export function TypingArea({
           isActive
           activeWord={currentWord}
           activeChar={currentChar}
+          showHint={showLineHint}
         />
       </div>
 
-      {showLineHint && (
-        <div className="flex items-center gap-2 mt-4 justify-end">
-          <span className="text-gray-600 text-xs">press space at end of line to continue</span>
-          <span className="text-yellow-400 text-lg animate-bounce">→</span>
-        </div>
-      )}
     </div>
   );
 }
