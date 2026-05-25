@@ -1,12 +1,15 @@
 import {
   ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend,
+  Tooltip, ResponsiveContainer, Legend, ReferenceLine,
 } from 'recharts';
-import type { WpmDataPoint } from '../../types';
+import type { WpmDataPoint, DifficultyChange } from '../../types';
+
+const DIFFICULTY_LABELS: Record<number, string> = { 1: 'easy', 2: 'medium', 3: 'hard', 4: 'expert' };
 
 interface Props {
   data: WpmDataPoint[];
   duration: number;
+  difficultyHistory: DifficultyChange[];
 }
 
 interface TooltipPayload {
@@ -35,11 +38,11 @@ function CustomTooltip({ active, label, payload }: CustomTooltipProps) {
   );
 }
 
-export function WpmGraph({ data, duration }: Props) {
+export function WpmGraph({ data, duration, difficultyHistory }: Props) {
   void duration;
   return (
     <ResponsiveContainer width="100%" height={220}>
-      <ComposedChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+      <ComposedChart data={data} margin={{ top: 20, right: 20, left: 0, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
         <XAxis
           dataKey="t"
@@ -66,6 +69,16 @@ export function WpmGraph({ data, duration }: Props) {
         <Legend
           wrapperStyle={{ color: '#9ca3af', fontSize: '12px', paddingTop: '8px' }}
         />
+        {difficultyHistory.map(({ t, level }) => (
+          <ReferenceLine
+            key={t}
+            x={t}
+            yAxisId="wpm"
+            stroke="#6b7280"
+            strokeDasharray="4 2"
+            label={{ value: DIFFICULTY_LABELS[level], position: 'top', fill: '#9ca3af', fontSize: 10 }}
+          />
+        ))}
         <Bar yAxisId="errors" dataKey="errors" name="errors" fill="#ef4444" opacity={0.5} barSize={6} />
         <Line
           yAxisId="wpm"

@@ -18,7 +18,7 @@ export function ResultsScreen({ results, onRestart }: Props) {
       />
 
       <div className="bg-gray-900 rounded-lg p-6 mb-8">
-        <WpmGraph data={results.wpmHistory} duration={results.duration} />
+        <WpmGraph data={results.wpmHistory} duration={results.duration} difficultyHistory={results.difficultyHistory} />
       </div>
 
       {/* Struggled patterns */}

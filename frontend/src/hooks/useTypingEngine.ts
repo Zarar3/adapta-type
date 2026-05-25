@@ -3,7 +3,7 @@ import { generateLine } from '../lib/wordSelector';
 import { updateNgramStats, promoteNgrams } from '../lib/ngramTracker';
 import type { NgramStats } from '../lib/ngramTracker';
 import { calcWpm, calcRawWpm, calcAccuracy } from '../lib/statsCalculator';
-import type { CharState, TestState, TimedMode, WpmDataPoint, TestResults } from '../types';
+import type { CharState, TestState, TimedMode, WpmDataPoint, TestResults, DifficultyChange } from '../types';
 
 function wordsPerLine(duration: TimedMode): number {
   if (duration <= 15) return 6;
@@ -30,6 +30,7 @@ interface EngineState {
   ngramGraduated: Record<string, number>; // patterns cleared during this test
   ngramStats: NgramStats;                 // per-keystroke bigram/trigram accuracy tally
   difficultyLevel: number;                // 1–4, increases as user improves
+  difficultyHistory: DifficultyChange[];  // when difficulty changed during the test
   perfectWordStreak: number;              // consecutive fully-correct words
   currentWordHadError: boolean;           // any wrong key this word, even if backspaced
   correctChars: number;
@@ -112,6 +113,7 @@ function buildInitialState(duration: TimedMode): EngineState {
     ngramGraduated: {},
     ngramStats: {},
     difficultyLevel: 1,
+    difficultyHistory: [],
     perfectWordStreak: 0,
     currentWordHadError: false,
     correctChars: 0,
@@ -153,6 +155,7 @@ export function useTypingEngine() {
       wpmHistory: s.wpmHistory,
       ngramMistakes: s.ngrams,
       ngramGraduated: s.ngramGraduated,
+      difficultyHistory: s.difficultyHistory,
     };
 
     // Fire-and-forget POST to backend
@@ -264,12 +267,18 @@ export function useTypingEngine() {
           updateStreaks(word, wordStates, ngramsAfterPromotion, next.ngramStreaks, next.ngramGraduated, next.ngramStats);
 
         const isLastWord = currentWord === line.words.length - 1;
+        const difficultyChanged = newDifficulty !== next.difficultyLevel;
+        const newDifficultyHistory = difficultyChanged
+          ? [...next.difficultyHistory, { t: next.duration - next.timeLeft, level: newDifficulty }]
+          : next.difficultyHistory;
+
         const shared = {
           ngrams: updatedNgrams,
           ngramStreaks: updatedStreaks,
           ngramGraduated: updatedGraduated,
           ngramStats: updatedStats,
           difficultyLevel: newDifficulty,
+          difficultyHistory: newDifficultyHistory,
           perfectWordStreak: adjustedStreak,
           currentWordHadError: false,
         };

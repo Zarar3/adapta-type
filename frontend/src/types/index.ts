@@ -7,14 +7,20 @@ export interface WpmDataPoint {
   errors: number;
 }
 
+export interface DifficultyChange {
+  t: number;
+  level: number;
+}
+
 export interface TestResults {
   wpm: number;
   rawWpm: number;
   accuracy: number;
   duration: number;
   wpmHistory: WpmDataPoint[];
-  ngramMistakes: Record<string, number>;  // patterns still unresolved at test end
-  ngramGraduated: Record<string, number>; // patterns the user cleared during the test
+  ngramMistakes: Record<string, number>;
+  ngramGraduated: Record<string, number>;
+  difficultyHistory: DifficultyChange[];
 }
 
 export type TestState = 'idle' | 'running' | 'finished';
