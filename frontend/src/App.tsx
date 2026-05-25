@@ -12,18 +12,20 @@ export default function App() {
   const { library, addFromSession, markCompleted } = usePatternLibrary();
   const [view, setView] = useState<'typing' | 'wall'>('typing');
 
-  // Tab + Enter to restart
+  const goHome = useCallback(() => { reset(); setView('typing'); }, [reset]);
+
+  // Tab + Enter to go home from anywhere
   useEffect(() => {
     let tabHeld = false;
     const down = (e: KeyboardEvent) => {
       if (e.key === 'Tab') { e.preventDefault(); tabHeld = true; }
-      if (e.key === 'Enter' && tabHeld) reset();
+      if (e.key === 'Enter' && tabHeld) goHome();
     };
     const up = (e: KeyboardEvent) => { if (e.key === 'Tab') tabHeld = false; };
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
-  }, [reset]);
+  }, [goHome]);
 
   // On test finish: save patterns, mark focused session complete
   const prevTestStateRef = useRef(state.testState);
@@ -40,11 +42,11 @@ export default function App() {
     setView('typing');
   }, [startFocusedSession]);
 
-  const handleRestart = useCallback(() => reset(), [reset]);
+  const handleRestart = useCallback(() => goHome(), [goHome]);
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 flex flex-col">
-      <Header view={view} onToggleView={() => setView(v => v === 'typing' ? 'wall' : 'typing')} />
+      <Header view={view} onToggleView={() => setView(v => v === 'typing' ? 'wall' : 'typing')} onLogoClick={goHome} />
 
       <main className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         {view === 'wall' ? (
@@ -73,7 +75,7 @@ export default function App() {
         )}
       </main>
 
-      <footer className="text-center py-4 text-gray-700 text-xs">
+      <footer className="text-center py-4 text-gray-700 text-s">
         tab + enter to restart
       </footer>
     </div>
