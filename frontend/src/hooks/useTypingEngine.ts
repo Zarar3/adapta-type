@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { generateLine } from '../lib/wordSelector';
-import { extractWordMistakeNgrams } from '../lib/ngramTracker';
+import { updateNgramStats, promoteNgrams } from '../lib/ngramTracker';
+import type { NgramStats } from '../lib/ngramTracker';
 import { calcWpm, calcRawWpm, calcAccuracy } from '../lib/statsCalculator';
 import type { CharState, TestState, TimedMode, WpmDataPoint, TestResults } from '../types';
 
@@ -27,6 +28,7 @@ interface EngineState {
   ngrams: Record<string, number>;
   ngramStreaks: Record<string, number>;   // consecutive correct encounters per n-gram
   ngramGraduated: Record<string, number>; // patterns cleared during this test
+  ngramStats: NgramStats;                 // per-keystroke bigram/trigram accuracy tally
   difficultyLevel: number;                // 1–4, increases as user improves
   perfectWordStreak: number;              // consecutive fully-correct words
   currentWordHadError: boolean;           // any wrong key this word, even if backspaced
@@ -51,10 +53,12 @@ function updateStreaks(
   ngrams: Record<string, number>,
   streaks: Record<string, number>,
   graduated: Record<string, number>,
-): { ngrams: Record<string, number>; ngramStreaks: Record<string, number>; ngramGraduated: Record<string, number> } {
+  ngramStats: NgramStats,
+): { ngrams: Record<string, number>; ngramStreaks: Record<string, number>; ngramGraduated: Record<string, number>; ngramStats: NgramStats } {
   const newNgrams = { ...ngrams };
   const newStreaks = { ...streaks };
   const newGraduated = { ...graduated };
+  const newStats = { ...ngramStats };
 
   for (const ng of Object.keys(newNgrams)) {
     if (ng.length > word.length) continue;
@@ -82,6 +86,7 @@ function updateStreaks(
         newGraduated[ng] = (newGraduated[ng] ?? 0) + 1;
         delete newNgrams[ng];
         delete newStreaks[ng];
+        delete newStats[ng]; // clear from stats so it can't be re-promoted
       } else {
         newStreaks[ng] = streak;
       }
@@ -91,7 +96,7 @@ function updateStreaks(
     }
   }
 
-  return { ngrams: newNgrams, ngramStreaks: newStreaks, ngramGraduated: newGraduated };
+  return { ngrams: newNgrams, ngramStreaks: newStreaks, ngramGraduated: newGraduated, ngramStats: newStats };
 }
 
 function buildInitialState(duration: TimedMode): EngineState {
@@ -105,6 +110,7 @@ function buildInitialState(duration: TimedMode): EngineState {
     ngrams: {},
     ngramStreaks: {},
     ngramGraduated: {},
+    ngramStats: {},
     difficultyLevel: 1,
     perfectWordStreak: 0,
     currentWordHadError: false,
@@ -253,18 +259,19 @@ export function useTypingEngine() {
         if (newStreak >= 5 && newDifficulty < 4) { newDifficulty += 1; adjustedStreak = 0; }
         if (wordErrors > 2 && newDifficulty > 1) { newDifficulty -= 1; adjustedStreak = 0; }
 
-        // Extract n-grams from mistake positions now that the word is complete
-        const ngramsAfterWord = extractWordMistakeNgrams(word, wordStates, next.ngrams);
+        // Promote bigrams/trigrams that now meet the error threshold
+        const ngramsAfterPromotion = promoteNgrams(word, next.ngramStats, next.ngrams, next.ngramGraduated);
 
-        // Update streaks (and possibly graduate patterns) — each n-gram judged independently
-        const { ngrams: updatedNgrams, ngramStreaks: updatedStreaks, ngramGraduated: updatedGraduated } =
-          updateStreaks(word, wordStates, ngramsAfterWord, next.ngramStreaks, next.ngramGraduated);
+        // Update streaks, graduate mastered patterns, clear them from ngramStats
+        const { ngrams: updatedNgrams, ngramStreaks: updatedStreaks, ngramGraduated: updatedGraduated, ngramStats: updatedStats } =
+          updateStreaks(word, wordStates, ngramsAfterPromotion, next.ngramStreaks, next.ngramGraduated, next.ngramStats);
 
         const isLastWord = currentWord === line.words.length - 1;
         const shared = {
           ngrams: updatedNgrams,
           ngramStreaks: updatedStreaks,
           ngramGraduated: updatedGraduated,
+          ngramStats: updatedStats,
           difficultyLevel: newDifficulty,
           perfectWordStreak: adjustedStreak,
           currentWordHadError: false,
@@ -291,6 +298,9 @@ export function useTypingEngine() {
       const newCharStates = line.charStates.map(row => [...row]);
       newCharStates[currentWord][currentChar] = isCorrect ? 'correct' : 'incorrect';
 
+      // Accumulate bigram/trigram stats on every keypress (including backspaced errors)
+      const newNgramStats = updateNgramStats(word, currentChar, isCorrect, next.ngramStats);
+
       return {
         ...next,
         line: { ...line, charStates: newCharStates },
@@ -299,6 +309,7 @@ export function useTypingEngine() {
         totalChars: next.totalChars + 1,
         errorCount: next.errorCount + (isCorrect ? 0 : 1),
         currentWordHadError: next.currentWordHadError || !isCorrect,
+        ngramStats: newNgramStats,
       };
     });
   }, []);
