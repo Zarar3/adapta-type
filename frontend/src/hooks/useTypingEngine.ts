@@ -33,6 +33,7 @@ interface EngineState {
   difficultyHistory: DifficultyChange[];  // when difficulty changed during the test
   showLineHint: boolean;                  // true until the first line is completed
   perfectWordStreak: number;              // consecutive fully-correct words
+  errorWordStreak: number;               // consecutive words with any mistake (for difficulty down)
   currentWordHadError: boolean;           // any wrong key this word, even if backspaced
   correctChars: number;
   totalChars: number;
@@ -118,6 +119,7 @@ function buildInitialState(duration: TimedMode): EngineState {
     difficultyHistory: [],
     showLineHint: true,
     perfectWordStreak: 0,
+    errorWordStreak: 0,
     currentWordHadError: false,
     correctChars: 0,
     totalChars: 0,
@@ -252,15 +254,20 @@ export function useTypingEngine() {
 
       if (e.key === ' ' && currentChar === word.length) {
         const wordStates = line.charStates[currentWord];
-        const wordErrors = wordStates.filter(s => s === 'incorrect').length;
+        const hadError = next.currentWordHadError;
 
-        // A word is only "perfect" if no wrong key was pressed, even if backspaced and fixed
-        const perfect = !next.currentWordHadError;
+        // Perfect streak: any wrong key (even corrected) breaks it
+        const perfect = !hadError;
         const newStreak = perfect ? next.perfectWordStreak + 1 : 0;
+
+        // Error streak: consecutive words with any mistake → drop difficulty after 3
+        const newErrorStreak = hadError ? next.errorWordStreak + 1 : 0;
+
         let newDifficulty = next.difficultyLevel;
         let adjustedStreak = newStreak;
-        if (newStreak >= streakThreshold(next.duration) && newDifficulty < 4) { newDifficulty += 1; adjustedStreak = 0; }
-        if (wordErrors > 2 && newDifficulty > 1) { newDifficulty -= 1; adjustedStreak = 0; }
+        let adjustedErrorStreak = newErrorStreak;
+        if (newStreak >= streakThreshold(next.duration) && newDifficulty < 4) { newDifficulty += 1; adjustedStreak = 0; adjustedErrorStreak = 0; }
+        if (newErrorStreak >= 3 && newDifficulty > 1) { newDifficulty -= 1; adjustedErrorStreak = 0; adjustedStreak = 0; }
 
         // Promote bigrams/trigrams that now meet the error threshold, then drop any
         // patterns with too few words in the list to be worth practising
@@ -285,6 +292,7 @@ export function useTypingEngine() {
           difficultyLevel: newDifficulty,
           difficultyHistory: updatedDifficultyHistory,
           perfectWordStreak: adjustedStreak,
+          errorWordStreak: adjustedErrorStreak,
           currentWordHadError: false,
         };
 
