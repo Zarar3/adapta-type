@@ -122,7 +122,7 @@ export function getSlowPatterns(): SlowPattern[] {
     const currentRatio = t && t.count > 0 ? (t.totalMs / t.count) / overallAvgMs : flaggedRatio;
     return {
       ng,
-      label: currentRatio >= 2 ? 'very slow' : 'slow',
+      label: (currentRatio >= 2 ? 'very slow' : 'slow') as SlowPattern['label'],
       improved: currentRatio < flaggedRatio * 0.8,
       count: t?.count ?? 0,
     };
@@ -142,12 +142,9 @@ export function promoteNgrams(
   stats: NgramStats,
   currentNgrams: Record<string, number>,
   graduated: Record<string, number>,
-  storedTiming: StoredTiming,
-  sessionAvgMs: number | null,
 ): Record<string, number> {
   const result = { ...currentNgrams };
 
-  // Error-based promotion
   for (let i = 1; i < word.length; i++) {
     const bg = word[i - 1] + word[i];
     const bgEntry = stats[bg];
@@ -179,17 +176,7 @@ export function promoteNgrams(
     result[promoted] = promotedErrors;
   }
 
-  // Timing-based promotion (cross-session)
-  if (sessionAvgMs !== null) {
-    for (const [ng, timing] of Object.entries(storedTiming)) {
-      if (ng in result || ng in graduated) continue;
-      if (timing.count < MIN_TIMING_SAMPLES) continue;
-      const avgMs = timing.totalMs / timing.count;
-      if (avgMs > sessionAvgMs * SLOW_MULTIPLIER) {
-        result[ng] = 1;
-      }
-    }
-  }
-
   return result;
 }
+
+export { ERROR_MIN, ERROR_RATE_MIN };

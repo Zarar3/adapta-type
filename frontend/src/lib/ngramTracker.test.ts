@@ -45,33 +45,33 @@ describe('updateNgramStats', () => {
 describe('promoteNgrams', () => {
   it('does NOT promote below error count threshold (1 error of 2 seen)', () => {
     const stats = { th: e(2, 1) };
-    const result = promoteNgrams('the', stats, {}, {}, {}, null);
+    const result = promoteNgrams('the', stats, {}, {});
     expect(result).toEqual({});
   });
 
   it('does NOT promote below error rate threshold (2 errors but only 10% rate)', () => {
     const stats = { th: e(20, 2) };
-    const result = promoteNgrams('the', stats, {}, {}, {}, null);
+    const result = promoteNgrams('the', stats, {}, {});
     expect(result).toEqual({});
   });
 
   it('promotes bigram meeting both thresholds (2 errors, 50% rate)', () => {
     const stats = { th: e(4, 2) };
-    const result = promoteNgrams('the', stats, {}, {}, {}, null);
+    const result = promoteNgrams('the', stats, {}, {});
     expect(result).toHaveProperty('th');
     expect(result['th']).toBe(2); // value = error count
   });
 
   it('upgrades bigram to trigram when trigram also qualifies', () => {
     const stats = { th: e(4, 2), the: e(4, 2) };
-    const result = promoteNgrams('the', stats, {}, {}, {}, null);
+    const result = promoteNgrams('the', stats, {}, {});
     expect(result).toHaveProperty('the');
     expect(result).not.toHaveProperty('th');
   });
 
   it('keeps bigram if trigram does not meet threshold', () => {
     const stats = { th: e(4, 2), the: e(10, 1) };
-    const result = promoteNgrams('the', stats, {}, {}, {}, null);
+    const result = promoteNgrams('the', stats, {}, {});
     expect(result).toHaveProperty('th');
     expect(result).not.toHaveProperty('the');
   });

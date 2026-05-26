@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { generateLine, generateWord, hasSufficientCoverage } from '../lib/wordSelector';
-import { updateNgramStats, promoteNgrams, saveTimingToStorage, loadStoredTiming, getSlowPatterns, incrementSessionCount } from '../lib/ngramTracker';
+import { updateNgramStats, promoteNgrams, saveTimingToStorage, loadStoredTiming, getSlowPatterns, incrementSessionCount, ERROR_MIN, ERROR_RATE_MIN } from '../lib/ngramTracker';
 import type { NgramStats, StoredTiming } from '../lib/ngramTracker';
 import { calcWpm, calcRawWpm, calcAccuracy } from '../lib/statsCalculator';
 import type { CharState, TestState, TimedMode, WpmDataPoint, TestResults, DifficultyChange } from '../types';
@@ -172,7 +172,9 @@ export function useTypingEngine() {
       longestPerfectStreak: s.longestPerfectStreak,
       wpmHistory: s.wpmHistory,
       ngramMistakes: Object.fromEntries(
-        Object.entries(s.ngrams).filter(([ng]) => (s.ngramStats[ng]?.errors ?? 0) > 0)
+        Object.entries(s.ngramStats)
+          .filter(([, stat]) => stat.errors >= ERROR_MIN && stat.errors / stat.seen >= ERROR_RATE_MIN)
+          .map(([ng, stat]) => [ng, stat.errors])
       ),
       ngramGraduated: s.ngramGraduated,
       difficultyHistory: s.difficultyHistory,
@@ -306,15 +308,7 @@ export function useTypingEngine() {
         if (newStreak >= streakThreshold(next.duration) && newDifficulty < 4) { newDifficulty += 1; adjustedStreak = 0; adjustedErrorStreak = 0; }
         if (newErrorStreak >= 3 && newDifficulty > 1) { newDifficulty -= 1; adjustedErrorStreak = 0; adjustedStreak = 0; }
 
-        // Promote bigrams/trigrams that meet the error or timing threshold
-        const elapsedMs = next.duration === 'infinite'
-          ? next.timeLeft * 1000
-          : ((next.duration as number) - next.timeLeft) * 1000;
-        const sessionAvgMs = next.totalChars > 0 ? elapsedMs / next.totalChars : null;
-        const promoted = promoteNgrams(
-          word, next.ngramStats, next.ngrams, next.ngramGraduated,
-          storedTimingRef.current, sessionAvgMs,
-        );
+        const promoted = promoteNgrams(word, next.ngramStats, next.ngrams, next.ngramGraduated);
         const ngramsAfterPromotion = Object.fromEntries(
           Object.entries(promoted).filter(([ng]) => hasSufficientCoverage(ng))
         );
