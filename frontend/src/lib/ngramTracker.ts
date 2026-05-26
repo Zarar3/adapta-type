@@ -89,7 +89,8 @@ function saveFlaggedMap(map: Record<string, FlaggedEntry>): void {
 export interface SlowPattern {
   ng: string;
   label: 'slow' | 'very slow';
-  improved: boolean;  // current ratio is 20%+ better than when first flagged
+  improved: boolean;     // current ratio is 20%+ better than when first flagged
+  currentlySlow: boolean; // current avg is still ≥ SLOW_MULTIPLIER × overall avg
   count: number;
 }
 
@@ -124,6 +125,7 @@ export function getSlowPatterns(): SlowPattern[] {
       ng,
       label: (currentRatio >= 2 ? 'very slow' : 'slow') as SlowPattern['label'],
       improved: currentRatio < flaggedRatio * 0.8,
+      currentlySlow: currentRatio >= SLOW_MULTIPLIER,
       count: t?.count ?? 0,
     };
   }).sort((a, b) => {
