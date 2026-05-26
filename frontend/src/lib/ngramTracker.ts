@@ -40,7 +40,7 @@ export function updateNgramStats(
   return next;
 }
 
-const ERROR_MIN = 2;
+const ERROR_MIN = 1;
 const ERROR_RATE_MIN = 0.10;
 const MIN_TIMING_SAMPLES = 3;
 const SLOW_MULTIPLIER = 1.5;

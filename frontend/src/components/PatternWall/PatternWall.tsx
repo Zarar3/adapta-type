@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { PatternRecord } from '../../hooks/usePatternLibrary';
+import { loadStrugglingPatterns } from '../../lib/ngramTracker';
 import type { TimedMode } from '../../types';
 
 interface Props {
@@ -12,19 +13,26 @@ const MODES: TimedMode[] = [15, 30, 60, 120];
 interface CardProps {
   record: PatternRecord;
   isOpen: boolean;
+  isStruggling: boolean;
   onOpen: () => void;
   onClose: () => void;
   onPractice: (pattern: string, duration: TimedMode) => void;
 }
 
-function PatternCard({ record, isOpen, onOpen, onClose, onPractice }: CardProps) {
+function PatternCard({ record, isOpen, isStruggling, onOpen, onClose, onPractice }: CardProps) {
   const { pattern, completed, bestWpm, bestAccuracy, sessionCount } = record;
 
   const borderClasses = completed
     ? 'border-green-500/30 bg-green-950/15 hover:border-green-400/50'
-    : 'border-red-500/40 bg-red-950/20 hover:border-red-400/70';
+    : isStruggling
+      ? 'border-yellow-500/40 bg-yellow-950/20 hover:border-yellow-400/70'
+      : 'border-gray-700/40 bg-gray-800/20 hover:border-gray-600/60';
 
-  const patternTextClass = completed ? 'text-green-300' : 'text-gray-100';
+  const patternTextClass = completed
+    ? 'text-green-300'
+    : isStruggling
+      ? 'text-yellow-300'
+      : 'text-gray-300';
 
   if (isOpen) {
     return (
@@ -84,7 +92,9 @@ function PatternCard({ record, isOpen, onOpen, onClose, onPractice }: CardProps)
       </span>
       {completed
         ? <span className="text-xs text-green-500 font-medium">mastered</span>
-        : <span className="text-xs text-red-400/70 group-hover:text-red-400 transition-colors">practice →</span>
+        : isStruggling
+          ? <span className="text-xs text-yellow-500/70 group-hover:text-yellow-400 transition-colors">struggling →</span>
+          : <span className="text-xs text-gray-600 group-hover:text-gray-400 transition-colors">practice →</span>
       }
     </button>
   );
@@ -92,6 +102,7 @@ function PatternCard({ record, isOpen, onOpen, onClose, onPractice }: CardProps)
 
 export function PatternWall({ library, onPractice }: Props) {
   const [activePattern, setActivePattern] = useState<string | null>(null);
+  const strugglingMap = loadStrugglingPatterns();
 
   const entries = Object.values(library).sort((a, b) => b.totalErrors - a.totalErrors);
 
@@ -113,6 +124,7 @@ export function PatternWall({ library, onPractice }: Props) {
     key: p.pattern,
     record: p,
     isOpen: activePattern === p.pattern,
+    isStruggling: !p.completed && p.pattern in strugglingMap,
     onOpen: () => setActivePattern(p.pattern),
     onClose: () => setActivePattern(null),
     onPractice,
@@ -122,7 +134,7 @@ export function PatternWall({ library, onPractice }: Props) {
     <div className="w-full max-w-5xl mx-auto">
       <div className="flex items-center gap-6 mb-8 text-sm font-mono">
         <span className="text-gray-500">
-          <span className="text-red-400 font-semibold">{pending.length}</span> to practice
+          <span className="text-yellow-400 font-semibold">{pending.length}</span> to practice
         </span>
         <span className="text-gray-700">·</span>
         <span className="text-gray-500">
