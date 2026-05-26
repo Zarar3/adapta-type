@@ -49,10 +49,6 @@ export function TypingArea({
         .slice(0, 5)
         .map(([k]) => k);
 
-  // Timing-seeded slow patterns that are still active (not yet graduated)
-  const slowActivePatterns = focusedPattern
-    ? []
-    : Object.keys(slowNgramKeys).filter(k => k in ngrams);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Sound-aware keydown wrapper
@@ -174,30 +170,6 @@ export function TypingArea({
         </div>
       )}
 
-      {slowActivePatterns.length > 0 && testState !== 'idle' && (
-        <div className="flex items-center gap-3 mb-4 flex-wrap">
-          <span className="text-xs text-gray-600">consistently slow:</span>
-          {slowActivePatterns.map(pattern => {
-            const streak = ngramStreaks[pattern] ?? 0;
-            return (
-              <div
-                key={pattern}
-                className="flex flex-col items-center gap-1 px-2 py-1 rounded bg-orange-400/10 border border-orange-400/20"
-              >
-                <span className="text-orange-300 text-xs font-mono tracking-wide">{pattern}</span>
-                <div className="flex gap-0.5">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <span
-                      key={i}
-                      className={`w-2 h-1.5 rounded-sm ${i < streak ? 'bg-orange-400' : 'bg-gray-700'}`}
-                    />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
 
       <div className="select-none">
         <WordDisplay
