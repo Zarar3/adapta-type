@@ -29,8 +29,8 @@ export function updateNgramStats(
   return next;
 }
 
-const ERROR_MIN = 1;
-const ERROR_RATE_MIN = 0.2;
+const ERROR_MIN = 2;
+const ERROR_RATE_MIN = 0.25;
 
 function meetsThreshold(entry: { seen: number; errors: number }): boolean {
   return entry.errors >= ERROR_MIN && entry.errors / entry.seen >= ERROR_RATE_MIN;

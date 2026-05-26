@@ -119,8 +119,8 @@ export function PatternWall({ library, onPractice }: Props) {
   });
 
   return (
-    <div className="w-full max-w-4xl mx-auto">
-      <div className="flex items-center gap-6 mb-10 text-sm font-mono">
+    <div className="w-full max-w-5xl mx-auto">
+      <div className="flex items-center gap-6 mb-8 text-sm font-mono">
         <span className="text-gray-500">
           <span className="text-red-400 font-semibold">{pending.length}</span> to practice
         </span>
@@ -130,27 +130,33 @@ export function PatternWall({ library, onPractice }: Props) {
         </span>
       </div>
 
-      {pending.length > 0 && (
-        <section className="mb-12">
+      <div className="grid grid-cols-2 gap-0 divide-x divide-gray-800">
+        <section className="pr-8">
           <h2 className="text-[11px] text-gray-600 font-medium uppercase tracking-[0.2em] mb-4">
             needs practice
           </h2>
-          <div className="flex flex-wrap gap-3">
-            {pending.map(p => <PatternCard {...makeCardProps(p)} />)}
-          </div>
+          {pending.length > 0 ? (
+            <div className="flex flex-wrap gap-3">
+              {pending.map(p => <PatternCard {...makeCardProps(p)} />)}
+            </div>
+          ) : (
+            <p className="text-gray-700 text-sm">nothing here yet</p>
+          )}
         </section>
-      )}
 
-      {done.length > 0 && (
-        <section>
+        <section className="pl-8">
           <h2 className="text-[11px] text-gray-600 font-medium uppercase tracking-[0.2em] mb-4">
             mastered
           </h2>
-          <div className="flex flex-wrap gap-3">
-            {done.map(p => <PatternCard {...makeCardProps(p)} />)}
-          </div>
+          {done.length > 0 ? (
+            <div className="flex flex-wrap gap-3">
+              {done.map(p => <PatternCard {...makeCardProps(p)} />)}
+            </div>
+          ) : (
+            <p className="text-gray-700 text-sm">complete a practice session to master patterns</p>
+          )}
         </section>
-      )}
+      </div>
     </div>
   );
 }
