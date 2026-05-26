@@ -5,6 +5,12 @@ import type { NgramStats } from '../lib/ngramTracker';
 import { calcWpm, calcRawWpm, calcAccuracy } from '../lib/statsCalculator';
 import type { CharState, TestState, TimedMode, WpmDataPoint, TestResults, DifficultyChange } from '../types';
 
+function streakThreshold(duration: TimedMode): number {
+  if (duration <= 15) return 3;
+  if (duration <= 60) return 5;
+  return 7; // 120s
+}
+
 interface LineData {
   words: string[];
   charStates: CharState[][];
@@ -253,7 +259,7 @@ export function useTypingEngine() {
         const newStreak = perfect ? next.perfectWordStreak + 1 : 0;
         let newDifficulty = next.difficultyLevel;
         let adjustedStreak = newStreak;
-        if (newStreak >= 5 && newDifficulty < 4) { newDifficulty += 1; adjustedStreak = 0; }
+        if (newStreak >= streakThreshold(next.duration) && newDifficulty < 4) { newDifficulty += 1; adjustedStreak = 0; }
         if (wordErrors > 2 && newDifficulty > 1) { newDifficulty -= 1; adjustedStreak = 0; }
 
         // Promote bigrams/trigrams that now meet the error threshold, then drop any
