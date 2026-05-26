@@ -48,7 +48,7 @@ export function ResultsScreen({ results, focusedPattern, onRestart, onPracticePa
       {(() => {
         const slowPatterns = getSlowPatterns();
         const strugglingMap = loadStrugglingPatterns();
-        const struggled = Object.keys(strugglingMap);
+        const struggled = Object.keys(strugglingMap).filter(ng => ng in results.ngramMistakes);
         const cleared = Object.keys(results.ngramGraduated);
         const hasAnything = slowPatterns.length > 0 || struggled.length > 0 || cleared.length > 0;
 
@@ -107,8 +107,8 @@ export function ResultsScreen({ results, focusedPattern, onRestart, onPracticePa
                   {struggled.map((ng) => (
                     <div key={ng}>
                       {pickingPattern === ng ? (
-                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-yellow-400/15 border border-yellow-400/40">
-                          <span className="font-mono text-yellow-300 text-sm">{ng}</span>
+                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-red-500/20 border border-red-500/50">
+                          <span className="font-mono text-red-400 text-sm">{ng}</span>
                           <span className="text-gray-600 text-xs mx-1">→</span>
                           {MODES.map(m => (
                             <button key={m} onClick={() => onPracticePattern(ng, m)}
@@ -121,7 +121,7 @@ export function ResultsScreen({ results, focusedPattern, onRestart, onPracticePa
                       ) : (
                         <button
                           onClick={() => setPickingPattern(ng)}
-                          className="px-3 py-1.5 rounded font-mono text-sm bg-yellow-400/10 border border-yellow-400/20 text-yellow-300 hover:bg-yellow-400/25 hover:border-yellow-400/40 transition-colors"
+                          className="px-3 py-1.5 rounded font-mono text-sm bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/35 hover:border-red-500/60 transition-colors"
                         >
                           {ng}
                         </button>
