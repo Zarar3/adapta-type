@@ -66,6 +66,16 @@ export function saveTimingToStorage(stats: NgramStats): void {
   }
 }
 
+const SESSION_COUNT_KEY = 'adapta-type-session-count';
+
+export function getSessionCount(): number {
+  try { return parseInt(localStorage.getItem(SESSION_COUNT_KEY) ?? '0', 10) || 0; } catch { return 0; }
+}
+
+export function incrementSessionCount(): void {
+  try { localStorage.setItem(SESSION_COUNT_KEY, String(getSessionCount() + 1)); } catch { /* silent */ }
+}
+
 export function loadStoredTiming(): StoredTiming {
   try {
     return JSON.parse(localStorage.getItem('adapta-type-timing') ?? '{}');

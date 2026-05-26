@@ -1,21 +1,32 @@
 import { useState } from 'react';
 import { StatsBar } from './StatsBar';
 import { WpmGraph } from './WpmGraph';
-import { getSlowPatterns } from '../../lib/ngramTracker';
+import { getSlowPatterns, getSessionCount } from '../../lib/ngramTracker';
 import type { TestResults, TimedMode } from '../../types';
 
 const MODES: TimedMode[] = [15, 30, 60, 120];
 
 interface Props {
   results: TestResults;
+  focusedPattern: string | null;
   onRestart: () => void;
   onPracticePattern: (pattern: string, duration: TimedMode) => void;
 }
 
-export function ResultsScreen({ results, onRestart, onPracticePattern }: Props) {
+export function ResultsScreen({ results, focusedPattern, onRestart, onPracticePattern }: Props) {
   const [pickingPattern, setPickingPattern] = useState<string | null>(null);
+  const sessionCount = getSessionCount();
+  const MIN_SESSIONS = 3;
+
   return (
     <div className="w-full max-w-4xl mx-auto animate-fade-in">
+      {focusedPattern && (
+        <div className="flex justify-center mb-4">
+          <span className="text-xs text-gray-500 font-mono">
+            practiced <span className="text-yellow-300 font-semibold">{focusedPattern}</span>
+          </span>
+        </div>
+      )}
       <StatsBar
         wpm={results.wpm}
         rawWpm={results.rawWpm}
@@ -36,12 +47,19 @@ export function ResultsScreen({ results, onRestart, onPracticePattern }: Props) 
       {/* Focus section — slow patterns from cross-session timing */}
       {(() => {
         const slowPatterns = getSlowPatterns();
-        if (slowPatterns.length === 0) return (
-          <div className="bg-gray-900 rounded-lg p-6 mb-8">
-            <h3 className="text-gray-400 text-sm font-medium mb-2">focus</h3>
-            <p className="text-xs text-gray-600">finish more tests to build your timing profile</p>
-          </div>
-        );
+        if (slowPatterns.length === 0) {
+          const remaining = Math.max(0, MIN_SESSIONS - sessionCount);
+          return (
+            <div className="bg-gray-900 rounded-lg p-6 mb-8">
+              <h3 className="text-gray-400 text-sm font-medium mb-2">focus</h3>
+              <p className="text-xs text-gray-600">
+                {remaining > 0
+                  ? `complete ${remaining} more test${remaining === 1 ? '' : 's'} to start building your timing profile`
+                  : 'no consistently slow patterns detected — keep going'}
+              </p>
+            </div>
+          );
+        }
         return (
           <div className="bg-gray-900 rounded-lg p-6 mb-8">
             <h3 className="text-gray-400 text-sm font-medium mb-4">focus</h3>

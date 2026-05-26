@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { generateLine, generateWord, hasSufficientCoverage, getProactiveBigrams } from '../lib/wordSelector';
-import { updateNgramStats, promoteNgrams, saveTimingToStorage, loadStoredTiming } from '../lib/ngramTracker';
+import { generateLine, generateWord, hasSufficientCoverage } from '../lib/wordSelector';
+import { updateNgramStats, promoteNgrams, saveTimingToStorage, loadStoredTiming, getSlowPatterns, incrementSessionCount } from '../lib/ngramTracker';
 import type { NgramStats, StoredTiming } from '../lib/ngramTracker';
 import { calcWpm, calcRawWpm, calcAccuracy } from '../lib/statsCalculator';
 import type { CharState, TestState, TimedMode, WpmDataPoint, TestResults, DifficultyChange } from '../types';
@@ -26,6 +26,7 @@ interface EngineState {
   currentWord: number;
   currentChar: number;
   ngrams: Record<string, number>;
+  slowNgramKeys: Record<string, true>;    // ngrams seeded from cross-session timing data
   ngramStreaks: Record<string, number>;   // consecutive correct encounters per n-gram
   ngramGraduated: Record<string, number>; // patterns cleared during this test
   ngramStats: NgramStats;                 // per-keystroke bigram/trigram accuracy tally
@@ -105,15 +106,18 @@ function updateStreaks(
 }
 
 function buildInitialState(duration: TimedMode): EngineState {
-  const proactiveNgrams = Object.fromEntries(getProactiveBigrams(6).map(bg => [bg, 1]));
+  const slowPatterns = getSlowPatterns();
+  const slowNgrams = Object.fromEntries(slowPatterns.map(p => [p.ng, 1]));
+  const slowNgramKeys = Object.fromEntries(slowPatterns.map(p => [p.ng, true as const]));
   return {
     testState: 'idle',
     duration,
     timeLeft: duration === 'infinite' ? 0 : duration,
-    line: makeLineData(generateLine(proactiveNgrams, 3, 1)),
+    line: makeLineData(generateLine(slowNgrams, 3, 1)),
     currentWord: 0,
     currentChar: 0,
-    ngrams: proactiveNgrams,
+    ngrams: slowNgrams,
+    slowNgramKeys,
     ngramStreaks: {},
     ngramGraduated: {},
     ngramStats: {},
@@ -174,6 +178,7 @@ export function useTypingEngine() {
 
     // Persist per-bigram timing to localStorage for cross-session detection
     saveTimingToStorage(s.ngramStats);
+    incrementSessionCount();
     storedTimingRef.current = loadStoredTiming();
 
     // Fire-and-forget POST to backend

@@ -65,6 +65,7 @@ export default function App() {
         ) : state.testState === 'finished' && state.results ? (
           <ResultsScreen
             results={state.results}
+            focusedPattern={state.focusedPattern}
             onRestart={handleRestart}
             onPracticePattern={handlePracticePattern}
           />
@@ -77,6 +78,7 @@ export default function App() {
             currentWord={state.currentWord}
             currentChar={state.currentChar}
             ngrams={state.ngrams}
+            slowNgramKeys={state.slowNgramKeys}
             ngramStreaks={state.ngramStreaks}
             difficultyLevel={state.difficultyLevel}
             focusedPattern={state.focusedPattern}
