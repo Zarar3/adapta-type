@@ -77,8 +77,7 @@ export default function App() {
             line={state.line}
             currentWord={state.currentWord}
             currentChar={state.currentChar}
-            ngrams={state.ngrams}
-            slowNgramKeys={state.slowNgramKeys}
+            ngramDisplayOrder={state.ngramDisplayOrder}
             ngramStreaks={state.ngramStreaks}
             difficultyLevel={state.difficultyLevel}
             focusedPattern={state.focusedPattern}

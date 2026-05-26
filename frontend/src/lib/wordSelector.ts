@@ -111,11 +111,12 @@ export function generateWord(
   ngrams: Record<string, number>,
   difficulty = 1,
   exclude: string[] = [],
+  bias = 1.0,
 ): string {
   const ngramKeys = Object.keys(ngrams);
   const tier = DIFFICULTY_TIERS[Math.min(Math.max(difficulty, 1), 4) - 1];
 
-  if (ngramKeys.length === 0) {
+  if (ngramKeys.length === 0 || Math.random() >= bias) {
     const src = tier.length > 0 ? tier : WORD_LIST;
     const pool = src.filter(w => !exclude.includes(w));
     const pick = pool.length > 0 ? pool : src;

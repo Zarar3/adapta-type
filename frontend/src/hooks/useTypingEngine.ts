@@ -30,6 +30,8 @@ interface EngineState {
   ngramStreaks: Record<string, number>;   // consecutive correct encounters per n-gram
   ngramGraduated: Record<string, number>; // patterns cleared during this test
   ngramStats: NgramStats;                 // per-keystroke bigram/trigram accuracy tally
+  ngramDisplayOrder: string[];            // up to 5 error-detected patterns currently shown in chips
+  ngramWaitQueue: string[];               // promoted but waiting for a display slot
   focusedPattern: string | null;          // set during a single-pattern practice session
   difficultyLevel: number;                // 1–4, increases as user improves
   difficultyHistory: DifficultyChange[];  // when difficulty changed during the test
@@ -121,6 +123,8 @@ function buildInitialState(duration: TimedMode): EngineState {
     ngramStreaks: {},
     ngramGraduated: {},
     ngramStats: {},
+    ngramDisplayOrder: [],
+    ngramWaitQueue: [],
     focusedPattern: null,
     difficultyLevel: 1,
     difficultyHistory: [],
@@ -325,11 +329,46 @@ export function useTypingEngine() {
           ? [...next.difficultyHistory, { t: elapsedT, level: newDifficulty }]
           : next.difficultyHistory;
 
+        // Patterns newly promoted this word (not slow timing patterns)
+        const newlyPromoted = Object.keys(ngramsAfterPromotion)
+          .filter(ng => !(ng in next.ngrams) && !next.slowNgramKeys[ng]);
+        // Patterns that graduated this word (were in active ngrams, now removed)
+        const justGraduated = new Set(
+          Object.keys(ngramsAfterPromotion).filter(ng => !(ng in updatedNgrams))
+        );
+
+        let displayOrder = [...next.ngramDisplayOrder];
+        let waitQueue = [...next.ngramWaitQueue];
+
+        // Free slots when patterns graduate; pull from wait queue to fill them
+        for (const ng of justGraduated) {
+          const dIdx = displayOrder.indexOf(ng);
+          const qIdx = waitQueue.indexOf(ng);
+          if (dIdx !== -1) {
+            displayOrder.splice(dIdx, 1);
+            if (waitQueue.length > 0) displayOrder.push(waitQueue.shift()!);
+          } else if (qIdx !== -1) {
+            waitQueue.splice(qIdx, 1);
+          }
+        }
+
+        // Add newly promoted to display (up to 5) or wait queue
+        for (const ng of newlyPromoted) {
+          if (justGraduated.has(ng)) continue;
+          if (displayOrder.length < 5) {
+            displayOrder.push(ng);
+          } else {
+            waitQueue.push(ng);
+          }
+        }
+
         const shared = {
           ngrams: updatedNgrams,
           ngramStreaks: updatedStreaks,
           ngramGraduated: updatedGraduated,
           ngramStats: updatedStats,
+          ngramDisplayOrder: displayOrder,
+          ngramWaitQueue: waitQueue,
           difficultyLevel: newDifficulty,
           difficultyHistory: updatedDifficultyHistory,
           perfectWordStreak: adjustedStreak,
@@ -342,7 +381,8 @@ export function useTypingEngine() {
         const lineNgrams = next.focusedPattern
           ? { [next.focusedPattern]: 5 }
           : updatedNgrams;
-        const nextWord = generateWord(lineNgrams, newDifficulty, [word, line.words[1], line.words[2]]);
+        const wordBias = next.focusedPattern ? 1.0 : 0.9;
+        const nextWord = generateWord(lineNgrams, newDifficulty, [word, line.words[1], line.words[2]], wordBias);
         const newWords = [line.words[1], line.words[2], nextWord];
         return {
           ...next,

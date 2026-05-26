@@ -16,8 +16,7 @@ interface Props {
   line: LineData;
   currentWord: number;
   currentChar: number;
-  ngrams: Record<string, number>;
-  slowNgramKeys: Record<string, true>;
+  ngramDisplayOrder: string[];
   ngramStreaks: Record<string, number>;
   difficultyLevel: number;
   focusedPattern: string | null;
@@ -36,18 +35,10 @@ const DIFFICULTY_LABELS = ['', 'easy', 'medium', 'hard', 'expert'];
 
 export function TypingArea({
   testState, timeLeft, duration, line,
-  currentWord, currentChar, ngrams, ngramStreaks, difficultyLevel, focusedPattern, showLineHint,
+  currentWord, currentChar, ngramDisplayOrder, ngramStreaks, difficultyLevel, focusedPattern, showLineHint,
   correctChars, totalChars, onKeyDown, onChangeDuration, onRestart, onEndTest, playCorrect, playWrong,
-  slowNgramKeys,
 }: Props) {
-  // Error-detected patterns only (exclude timing-seeded slow ones)
-  const focusPatterns = focusedPattern
-    ? []
-    : Object.entries(ngrams)
-        .filter(([k]) => !slowNgramKeys[k])
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 5)
-        .map(([k]) => k);
+  const focusPatterns = focusedPattern ? [] : ngramDisplayOrder;
 
   const inputRef = useRef<HTMLInputElement>(null);
 
