@@ -18,7 +18,7 @@ const stateClass: Record<CharState, string> = {
 
 export function WordDisplay({ words, charStates, isActive, activeWord, activeChar, showHint }: LineProps) {
   return (
-    <div className={`flex flex-wrap gap-x-6 gap-y-4 transition-opacity duration-150 leading-relaxed ${isActive ? 'opacity-100' : 'opacity-30'}`}>
+    <div className={`flex flex-wrap justify-center gap-x-6 gap-y-4 transition-opacity duration-150 leading-relaxed ${isActive ? 'opacity-100' : 'opacity-30'}`}>
       {words.map((word, wi) => (
         <span key={wi} className="font-mono text-3xl tracking-wide relative">
           {word.split('').map((char, ci) => {

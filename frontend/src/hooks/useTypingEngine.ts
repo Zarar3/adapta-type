@@ -100,7 +100,7 @@ function buildInitialState(duration: TimedMode): EngineState {
     testState: 'idle',
     duration,
     timeLeft: duration,
-    line: makeLineData(generateLine({}, 2, 1)),
+    line: makeLineData(generateLine({}, 3, 1)),
     currentWord: 0,
     currentChar: 0,
     ngrams: {},
@@ -286,8 +286,8 @@ export function useTypingEngine() {
         const lineNgrams = next.focusedPattern
           ? { [next.focusedPattern]: 5 }
           : updatedNgrams;
-        const nextWord = generateWord(lineNgrams, newDifficulty, [word, line.words[1]]);
-        const newWords = [line.words[1], nextWord];
+        const nextWord = generateWord(lineNgrams, newDifficulty, [word, line.words[1], line.words[2]]);
+        const newWords = [line.words[1], line.words[2], nextWord];
         return {
           ...next,
           ...shared,
@@ -356,7 +356,7 @@ export function useTypingEngine() {
       ...buildInitialState(dur),
       focusedPattern: pattern,
       ngrams: focusNgrams,
-      line: makeLineData(generateLine(focusNgrams, 2)),
+      line: makeLineData(generateLine(focusNgrams, 3)),
     });
   }, [stopTicker]);
 
