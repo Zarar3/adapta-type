@@ -65,7 +65,7 @@ export function ResultsScreen({ results, focusedPattern, onRestart, onPracticePa
             <h3 className="text-gray-400 text-sm font-medium mb-4">focus</h3>
             <p className="text-xs text-gray-600 mb-3">consistently slow — click to practice</p>
             <div className="flex flex-wrap gap-2">
-              {slowPatterns.map(({ ng, ratio }) => (
+              {slowPatterns.map(({ ng, label, improved }) => (
                 <div key={ng}>
                   {pickingPattern === ng ? (
                     <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-yellow-400/15 border border-yellow-400/40">
@@ -85,7 +85,8 @@ export function ResultsScreen({ results, focusedPattern, onRestart, onPracticePa
                       className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-yellow-400/10 border border-yellow-400/20 hover:bg-yellow-400/25 hover:border-yellow-400/40 transition-colors"
                     >
                       <span className="font-mono text-yellow-300 text-sm">{ng}</span>
-                      <span className="text-yellow-600 text-xs">{ratio.toFixed(1)}×</span>
+                      <span className="text-yellow-600/70 text-xs">{label}</span>
+                      {improved && <span className="text-green-400 text-xs">↑</span>}
                     </button>
                   )}
                 </div>

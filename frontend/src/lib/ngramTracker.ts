@@ -32,10 +32,7 @@ export function updateNgramStats(
     };
   };
 
-  // Bigram ending at charIndex
   addEntry(word[charIndex - 1] + word[charIndex]);
-
-  // Trigram ending at charIndex (when possible)
   if (charIndex >= 2) {
     addEntry(word[charIndex - 2] + word[charIndex - 1] + word[charIndex]);
   }
@@ -61,9 +58,7 @@ export function saveTimingToStorage(stats: NgramStats): void {
       stored[ng] = { totalMs: prev.totalMs + entry.totalMs, count: prev.count + entry.timedCount };
     }
     localStorage.setItem('adapta-type-timing', JSON.stringify(stored));
-  } catch {
-    // localStorage unavailable — fail silently
-  }
+  } catch { /* silent */ }
 }
 
 const SESSION_COUNT_KEY = 'adapta-type-session-count';
@@ -77,41 +72,64 @@ export function incrementSessionCount(): void {
 }
 
 export function loadStoredTiming(): StoredTiming {
-  try {
-    return JSON.parse(localStorage.getItem('adapta-type-timing') ?? '{}');
-  } catch {
-    return {};
-  }
+  try { return JSON.parse(localStorage.getItem('adapta-type-timing') ?? '{}'); } catch { return {}; }
+}
+
+// Stores patterns that were ever flagged slow, along with ratio at time of flagging
+const FLAGGED_KEY = 'adapta-type-flagged-slow';
+interface FlaggedEntry { ratio: number }
+
+function loadFlaggedMap(): Record<string, FlaggedEntry> {
+  try { return JSON.parse(localStorage.getItem(FLAGGED_KEY) ?? '{}'); } catch { return {}; }
+}
+function saveFlaggedMap(map: Record<string, FlaggedEntry>): void {
+  try { localStorage.setItem(FLAGGED_KEY, JSON.stringify(map)); } catch { /* silent */ }
 }
 
 export interface SlowPattern {
   ng: string;
-  avgMs: number;
-  overallAvgMs: number;
-  ratio: number;
+  label: 'slow' | 'very slow';
+  improved: boolean;  // current ratio is 20%+ better than when first flagged
   count: number;
 }
 
 export function getSlowPatterns(): SlowPattern[] {
   const stored = loadStoredTiming();
   const entries = Object.entries(stored).filter(([, t]) => t.count >= MIN_TIMING_SAMPLES);
-  if (entries.length === 0) return [];
+
+  if (entries.length > 0) {
+    const totalMs = entries.reduce((s, [, t]) => s + t.totalMs, 0);
+    const totalCount = entries.reduce((s, [, t]) => s + t.count, 0);
+    const overallAvgMs = totalMs / totalCount;
+    const flagged = loadFlaggedMap();
+    let changed = false;
+    for (const [ng, t] of entries) {
+      const ratio = (t.totalMs / t.count) / overallAvgMs;
+      if (ratio >= SLOW_MULTIPLIER && !(ng in flagged)) { flagged[ng] = { ratio }; changed = true; }
+    }
+    if (changed) saveFlaggedMap(flagged);
+  }
+
+  const flagged = loadFlaggedMap();
+  if (Object.keys(flagged).length === 0) return [];
 
   const totalMs = entries.reduce((s, [, t]) => s + t.totalMs, 0);
   const totalCount = entries.reduce((s, [, t]) => s + t.count, 0);
-  const overallAvgMs = totalMs / totalCount;
+  const overallAvgMs = totalCount > 0 ? totalMs / totalCount : 1;
 
-  return entries
-    .map(([ng, t]) => ({
+  return Object.entries(flagged).map(([ng, { ratio: flaggedRatio }]) => {
+    const t = stored[ng];
+    const currentRatio = t && t.count > 0 ? (t.totalMs / t.count) / overallAvgMs : flaggedRatio;
+    return {
       ng,
-      avgMs: t.totalMs / t.count,
-      overallAvgMs,
-      ratio: (t.totalMs / t.count) / overallAvgMs,
-      count: t.count,
-    }))
-    .filter(p => p.ratio >= SLOW_MULTIPLIER)
-    .sort((a, b) => b.ratio - a.ratio)
-    .slice(0, 8);
+      label: currentRatio >= 2 ? 'very slow' : 'slow',
+      improved: currentRatio < flaggedRatio * 0.8,
+      count: t?.count ?? 0,
+    };
+  }).sort((a, b) => {
+    if (a.improved !== b.improved) return a.improved ? 1 : -1;
+    return (b.label === 'very slow' ? 1 : 0) - (a.label === 'very slow' ? 1 : 0);
+  });
 }
 
 /**
@@ -138,7 +156,6 @@ export function promoteNgrams(
     if (bg in result) continue;
     if (bg in graduated) continue;
 
-    // Try to upgrade to a more specific trigram containing this bigram
     let promoted = bg;
     let promotedErrors = bgEntry.errors;
 

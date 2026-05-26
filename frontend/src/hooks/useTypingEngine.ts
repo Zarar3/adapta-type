@@ -171,7 +171,9 @@ export function useTypingEngine() {
       peakWpm,
       longestPerfectStreak: s.longestPerfectStreak,
       wpmHistory: s.wpmHistory,
-      ngramMistakes: s.ngrams,
+      ngramMistakes: Object.fromEntries(
+        Object.entries(s.ngrams).filter(([ng]) => (s.ngramStats[ng]?.errors ?? 0) > 0)
+      ),
       ngramGraduated: s.ngramGraduated,
       difficultyHistory: s.difficultyHistory,
     };
