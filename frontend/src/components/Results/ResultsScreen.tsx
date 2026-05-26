@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { StatsBar } from './StatsBar';
 import { WpmGraph } from './WpmGraph';
+import { getSlowPatterns } from '../../lib/ngramTracker';
 import type { TestResults, TimedMode } from '../../types';
 
 const MODES: TimedMode[] = [15, 30, 60, 120];
@@ -31,6 +32,50 @@ export function ResultsScreen({ results, onRestart, onPracticePattern }: Props) 
       <div className="bg-gray-900 rounded-lg p-6 mb-8">
         <WpmGraph data={results.wpmHistory} duration={results.duration} difficultyHistory={results.difficultyHistory} />
       </div>
+
+      {/* Focus section — slow patterns from cross-session timing */}
+      {(() => {
+        const slowPatterns = getSlowPatterns();
+        if (slowPatterns.length === 0) return (
+          <div className="bg-gray-900 rounded-lg p-6 mb-8">
+            <h3 className="text-gray-400 text-sm font-medium mb-2">focus</h3>
+            <p className="text-xs text-gray-600">finish more tests to build your timing profile</p>
+          </div>
+        );
+        return (
+          <div className="bg-gray-900 rounded-lg p-6 mb-8">
+            <h3 className="text-gray-400 text-sm font-medium mb-4">focus</h3>
+            <p className="text-xs text-gray-600 mb-3">consistently slow — click to practice</p>
+            <div className="flex flex-wrap gap-2">
+              {slowPatterns.map(({ ng, ratio }) => (
+                <div key={ng}>
+                  {pickingPattern === ng ? (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-yellow-400/15 border border-yellow-400/40">
+                      <span className="font-mono text-yellow-300 text-sm">{ng}</span>
+                      <span className="text-gray-600 text-xs mx-1">→</span>
+                      {MODES.map(m => (
+                        <button key={m} onClick={() => onPracticePattern(ng, m)}
+                          className="px-2 py-0.5 rounded text-xs font-mono bg-gray-800 text-gray-300 hover:bg-yellow-400 hover:text-gray-900 transition-colors">
+                          {m}s
+                        </button>
+                      ))}
+                      <button onClick={() => setPickingPattern(null)} className="text-xs text-gray-700 hover:text-gray-500 ml-1">✕</button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setPickingPattern(ng)}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-yellow-400/10 border border-yellow-400/20 hover:bg-yellow-400/25 hover:border-yellow-400/40 transition-colors"
+                    >
+                      <span className="font-mono text-yellow-300 text-sm">{ng}</span>
+                      <span className="text-yellow-600 text-xs">{ratio.toFixed(1)}×</span>
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Struggled patterns */}
       {(() => {

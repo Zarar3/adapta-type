@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { generateLine, generateWord, hasSufficientCoverage } from '../lib/wordSelector';
-import { updateNgramStats, promoteNgrams } from '../lib/ngramTracker';
-import type { NgramStats } from '../lib/ngramTracker';
+import { generateLine, generateWord, hasSufficientCoverage, getProactiveBigrams } from '../lib/wordSelector';
+import { updateNgramStats, promoteNgrams, saveTimingToStorage, loadStoredTiming } from '../lib/ngramTracker';
+import type { NgramStats, StoredTiming } from '../lib/ngramTracker';
 import { calcWpm, calcRawWpm, calcAccuracy } from '../lib/statsCalculator';
 import type { CharState, TestState, TimedMode, WpmDataPoint, TestResults, DifficultyChange } from '../types';
 
@@ -105,14 +105,15 @@ function updateStreaks(
 }
 
 function buildInitialState(duration: TimedMode): EngineState {
+  const proactiveNgrams = Object.fromEntries(getProactiveBigrams(6).map(bg => [bg, 1]));
   return {
     testState: 'idle',
     duration,
     timeLeft: duration === 'infinite' ? 0 : duration,
-    line: makeLineData(generateLine({}, 3, 1)),
+    line: makeLineData(generateLine(proactiveNgrams, 3, 1)),
     currentWord: 0,
     currentChar: 0,
-    ngrams: {},
+    ngrams: proactiveNgrams,
     ngramStreaks: {},
     ngramGraduated: {},
     ngramStats: {},
@@ -139,6 +140,8 @@ export function useTypingEngine() {
   const startTimeRef = useRef<number | null>(null);
   const tickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const secondCountRef = useRef(0);
+  const lastKeypressTimeRef = useRef<number | null>(null);
+  const storedTimingRef = useRef<StoredTiming>(loadStoredTiming());
 
   // Expose a stable ref to the latest state for use inside intervals
   const stateRef = useRef(state);
@@ -168,6 +171,10 @@ export function useTypingEngine() {
       ngramGraduated: s.ngramGraduated,
       difficultyHistory: s.difficultyHistory,
     };
+
+    // Persist per-bigram timing to localStorage for cross-session detection
+    saveTimingToStorage(s.ngramStats);
+    storedTimingRef.current = loadStoredTiming();
 
     // Fire-and-forget POST to backend
     const backendUrl = import.meta.env.VITE_BACKEND_URL as string;
@@ -244,6 +251,12 @@ export function useTypingEngine() {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key.length > 1 && e.key !== 'Backspace' && e.key !== ' ') return;
 
+    // Capture inter-keystroke delta for timing analysis
+    const now = performance.now();
+    const deltaMs = lastKeypressTimeRef.current !== null ? now - lastKeypressTimeRef.current : null;
+    lastKeypressTimeRef.current = now;
+    const validDelta = deltaMs !== null && deltaMs < 2000 ? deltaMs : null;
+
     setState(prev => {
       if (prev.testState === 'finished') return prev;
 
@@ -268,6 +281,8 @@ export function useTypingEngine() {
       }
 
       if (e.key === ' ' && currentChar === word.length) {
+        // Reset timing ref between words to avoid measuring pause time
+        lastKeypressTimeRef.current = null;
         const wordStates = line.charStates[currentWord];
         const hadError = next.currentWordHadError;
 
@@ -284,9 +299,15 @@ export function useTypingEngine() {
         if (newStreak >= streakThreshold(next.duration) && newDifficulty < 4) { newDifficulty += 1; adjustedStreak = 0; adjustedErrorStreak = 0; }
         if (newErrorStreak >= 3 && newDifficulty > 1) { newDifficulty -= 1; adjustedErrorStreak = 0; adjustedStreak = 0; }
 
-        // Promote bigrams/trigrams that now meet the error threshold, then drop any
-        // patterns with too few words in the list to be worth practising
-        const promoted = promoteNgrams(word, next.ngramStats, next.ngrams, next.ngramGraduated);
+        // Promote bigrams/trigrams that meet the error or timing threshold
+        const elapsedMs = next.duration === 'infinite'
+          ? next.timeLeft * 1000
+          : ((next.duration as number) - next.timeLeft) * 1000;
+        const sessionAvgMs = next.totalChars > 0 ? elapsedMs / next.totalChars : null;
+        const promoted = promoteNgrams(
+          word, next.ngramStats, next.ngrams, next.ngramGraduated,
+          storedTimingRef.current, sessionAvgMs,
+        );
         const ngramsAfterPromotion = Object.fromEntries(
           Object.entries(promoted).filter(([ng]) => hasSufficientCoverage(ng))
         );
@@ -344,7 +365,7 @@ export function useTypingEngine() {
       newCharStates[currentWord][currentChar] = isCorrect ? 'correct' : 'incorrect';
 
       // Accumulate bigram/trigram stats on every keypress (including backspaced errors)
-      const newNgramStats = updateNgramStats(word, currentChar, isCorrect, next.ngramStats);
+      const newNgramStats = updateNgramStats(word, currentChar, isCorrect, next.ngramStats, validDelta);
 
       return {
         ...next,

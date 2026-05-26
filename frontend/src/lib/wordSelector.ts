@@ -76,6 +76,37 @@ export function hasSufficientCoverage(pattern: string): boolean {
   return false;
 }
 
+let _proactiveBigrams: string[] | null = null;
+
+export function getProactiveBigrams(count = 6): string[] {
+  if (_proactiveBigrams) return _proactiveBigrams.slice(0, count);
+
+  const letters = Object.keys(FINGER);
+  const freqMap: Record<string, number> = {};
+
+  for (let i = 0; i < letters.length; i++) {
+    for (let j = 0; j < letters.length; j++) {
+      if (i === j) continue;
+      if (FINGER[letters[i]] !== FINGER[letters[j]]) continue;
+      const bg = letters[i] + letters[j];
+      let freq = 0;
+      for (const w of WORD_LIST.slice(0, 1500)) {
+        for (let k = 0; k < w.length - 1; k++) {
+          if (w[k] === letters[i] && w[k + 1] === letters[j]) freq++;
+        }
+      }
+      if (freq > 0) freqMap[bg] = freq;
+    }
+  }
+
+  _proactiveBigrams = Object.entries(freqMap)
+    .sort((a, b) => b[1] - a[1])
+    .map(([bg]) => bg)
+    .filter(hasSufficientCoverage);
+
+  return _proactiveBigrams.slice(0, count);
+}
+
 export function generateWord(
   ngrams: Record<string, number>,
   difficulty = 1,
