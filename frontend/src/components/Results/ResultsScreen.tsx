@@ -47,9 +47,9 @@ export function ResultsScreen({ results, focusedPattern, onRestart, onPracticePa
       {/* Pattern wall */}
       {(() => {
         const allSlowPatterns = getSlowPatterns();
-        const slowThisRunSet = new Set(results.slowThisRun);
-        const slowThisRun = allSlowPatterns.filter(p => slowThisRunSet.has(p.ng));
-        const slowHistory = allSlowPatterns.filter(p => !slowThisRunSet.has(p.ng));
+        const preRunSet = new Set(results.preRunSlowKeys);
+        const slowThisRun = allSlowPatterns.filter(p => !preRunSet.has(p.ng));
+        const slowHistory = allSlowPatterns.filter(p => preRunSet.has(p.ng));
         const strugglingMap = loadStrugglingPatterns();
         const focusedSet = new Set(results.ngramFocused);
         const struggled = Object.keys(strugglingMap).filter(ng => focusedSet.has(ng));

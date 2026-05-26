@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { generateLine, generateWord, hasSufficientCoverage } from '../lib/wordSelector';
-import { updateNgramStats, promoteNgrams, saveTimingToStorage, loadStoredTiming, getSlowPatterns, getSlowPatternsFromStats, incrementSessionCount, updateStrugglingPatterns, markPatternPracticed } from '../lib/ngramTracker';
+import { updateNgramStats, promoteNgrams, saveTimingToStorage, loadStoredTiming, getSlowPatterns, getFlaggedSlowKeys, incrementSessionCount, updateStrugglingPatterns, markPatternPracticed } from '../lib/ngramTracker';
 import type { NgramStats, StoredTiming } from '../lib/ngramTracker';
 import { calcWpm, calcRawWpm, calcAccuracy } from '../lib/statsCalculator';
 import type { CharState, TestState, TimedMode, WpmDataPoint, TestResults, DifficultyChange } from '../types';
@@ -169,6 +169,9 @@ export function useTypingEngine() {
     const rawWpm = calcRawWpm(s.totalChars, elapsedMs);
     const accuracy = calcAccuracy(s.correctChars, s.totalChars);
     const peakWpm = s.wpmHistory.length > 0 ? Math.max(...s.wpmHistory.map(p => p.wpm)) : 0;
+    // Capture which patterns were already flagged slow BEFORE merging this run's timing
+    const preRunSlowKeys = getFlaggedSlowKeys();
+
     const results: TestResults = {
       wpm, rawWpm, accuracy,
       duration: s.duration === 'infinite' ? s.timeLeft : s.duration,
@@ -181,7 +184,7 @@ export function useTypingEngine() {
           .map(([ng, stat]) => [ng, stat.errors])
       ),
       ngramFocused: Object.keys(s.ngrams).filter(ng => !s.slowNgramKeys[ng]),
-      slowThisRun: getSlowPatternsFromStats(s.ngramStats),
+      preRunSlowKeys,
       ngramGraduated: s.ngramGraduated,
       difficultyHistory: s.difficultyHistory,
     };
