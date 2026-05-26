@@ -32,6 +32,7 @@ interface EngineState {
   ngramStats: NgramStats;                 // per-keystroke bigram/trigram accuracy tally
   ngramDisplayOrder: string[];            // up to 5 error-detected patterns currently shown in chips
   ngramWaitQueue: string[];               // promoted but waiting for a display slot
+  recentWords: string[];                  // last N completed words, used to avoid repeats
   focusedPattern: string | null;          // set during a single-pattern practice session
   difficultyLevel: number;                // 1–4, increases as user improves
   difficultyHistory: DifficultyChange[];  // when difficulty changed during the test
@@ -125,6 +126,7 @@ function buildInitialState(duration: TimedMode): EngineState {
     ngramStats: {},
     ngramDisplayOrder: [],
     ngramWaitQueue: [],
+    recentWords: [],
     focusedPattern: null,
     difficultyLevel: 1,
     difficultyHistory: [],
@@ -374,6 +376,7 @@ export function useTypingEngine() {
           ngramStats: updatedStats,
           ngramDisplayOrder: displayOrder,
           ngramWaitQueue: waitQueue,
+          recentWords: updatedRecent,
           difficultyLevel: newDifficulty,
           difficultyHistory: updatedDifficultyHistory,
           perfectWordStreak: adjustedStreak,
@@ -387,7 +390,9 @@ export function useTypingEngine() {
           ? { [next.focusedPattern]: 5 }
           : updatedNgrams;
         const wordBias = next.focusedPattern ? 1.0 : 0.9;
-        const nextWord = generateWord(lineNgrams, newDifficulty, [word, line.words[1], line.words[2]], wordBias);
+        const updatedRecent = [...next.recentWords, word].slice(-3);
+        const excludeList = [...new Set([...updatedRecent, line.words[1], line.words[2]])];
+        const nextWord = generateWord(lineNgrams, newDifficulty, excludeList, wordBias);
         const newWords = [line.words[1], line.words[2], nextWord];
         return {
           ...next,
