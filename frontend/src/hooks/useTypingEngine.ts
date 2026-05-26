@@ -180,6 +180,7 @@ export function useTypingEngine() {
           .filter(([, stat]) => stat.errors > 0)
           .map(([ng, stat]) => [ng, stat.errors])
       ),
+      ngramFocused: Object.keys(s.ngrams).filter(ng => !s.slowNgramKeys[ng]),
       ngramGraduated: s.ngramGraduated,
       difficultyHistory: s.difficultyHistory,
     };

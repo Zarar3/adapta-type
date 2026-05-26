@@ -48,7 +48,8 @@ export function ResultsScreen({ results, focusedPattern, onRestart, onPracticePa
       {(() => {
         const slowPatterns = getSlowPatterns();
         const strugglingMap = loadStrugglingPatterns();
-        const struggled = Object.keys(strugglingMap).filter(ng => ng in results.ngramMistakes);
+        const focusedSet = new Set(results.ngramFocused);
+        const struggled = Object.keys(strugglingMap).filter(ng => focusedSet.has(ng));
         const cleared = Object.keys(results.ngramGraduated);
         const hasAnything = slowPatterns.length > 0 || struggled.length > 0 || cleared.length > 0;
 

@@ -21,6 +21,7 @@ export interface TestResults {
   longestPerfectStreak: number;
   wpmHistory: WpmDataPoint[];
   ngramMistakes: Record<string, number>;
+  ngramFocused: string[];              // error-promoted patterns still active at test end
   ngramGraduated: Record<string, number>;
   difficultyHistory: DifficultyChange[];
 }
