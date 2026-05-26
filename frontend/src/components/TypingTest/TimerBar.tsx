@@ -11,13 +11,6 @@ const MODES: TimedMode[] = [15, 30, 60, 120, 'infinite'];
 
 export function TimerBar({ testState, timeLeft, duration, onChangeDuration }: Props) {
   if (testState === 'running') {
-    if (duration === 'infinite') {
-      return (
-        <div className="flex justify-center mb-6">
-          <span className="text-3xl font-mono font-bold text-gray-500">{timeLeft}</span>
-        </div>
-      );
-    }
     return (
       <div className="flex justify-center mb-6">
         <span className="text-3xl font-mono font-bold text-yellow-400">{timeLeft}</span>

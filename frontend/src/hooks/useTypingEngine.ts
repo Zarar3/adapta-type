@@ -396,11 +396,18 @@ export function useTypingEngine() {
   // Cleanup on unmount
   useEffect(() => () => stopTicker(), [stopTicker]);
 
+  const endTest = useCallback(() => {
+    if (stateRef.current.testState === 'running') {
+      finishTest(stateRef.current);
+    }
+  }, [finishTest]);
+
   return {
     state,
     handleKeyDown,
     reset,
     changeDuration,
     startFocusedSession,
+    endTest,
   };
 }

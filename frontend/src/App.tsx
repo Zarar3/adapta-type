@@ -9,7 +9,7 @@ import { useSound } from './hooks/useSound';
 import type { TimedMode } from './types';
 
 export default function App() {
-  const { state, handleKeyDown, reset, changeDuration, startFocusedSession } = useTypingEngine();
+  const { state, handleKeyDown, reset, changeDuration, startFocusedSession, endTest } = useTypingEngine();
   const { library, addFromSession, markCompleted, recordFocusedSession } = usePatternLibrary();
   const { enabled: soundEnabled, toggle: toggleSound, playCorrect, playWrong } = useSound();
   const [view, setView] = useState<'typing' | 'wall'>('typing');
@@ -86,6 +86,7 @@ export default function App() {
             onKeyDown={handleKeyDown}
             onChangeDuration={changeDuration}
             onRestart={handleRestart}
+            onEndTest={endTest}
             playCorrect={playCorrect}
             playWrong={playWrong}
           />

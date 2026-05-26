@@ -26,6 +26,7 @@ interface Props {
   onKeyDown: (e: KeyboardEvent) => void;
   onChangeDuration: (d: TimedMode) => void;
   onRestart: () => void;
+  onEndTest?: () => void;
   playCorrect?: () => void;
   playWrong?: () => void;
 }
@@ -35,7 +36,7 @@ const DIFFICULTY_LABELS = ['', 'easy', 'medium', 'hard', 'expert'];
 export function TypingArea({
   testState, timeLeft, duration, line,
   currentWord, currentChar, ngrams, ngramStreaks, difficultyLevel, focusedPattern, showLineHint,
-  correctChars, totalChars, onKeyDown, onChangeDuration, onRestart, playCorrect, playWrong,
+  correctChars, totalChars, onKeyDown, onChangeDuration, onRestart, onEndTest, playCorrect, playWrong,
 }: Props) {
   const focusPatterns = focusedPattern
     ? []
@@ -113,9 +114,9 @@ export function TypingArea({
 
       {testState === 'running' && (
         <>
-          <div className="flex justify-center gap-6 mb-4 text-sm font-mono text-gray-500">
-            <span>{liveWpm} <span className="text-gray-400">wpm</span></span>
-            <span>{liveAccuracy}% <span className="text-gray-400">acc</span></span>
+          <div className="flex justify-center gap-6 mb-4 text-sm font-mono text-yellow-400">
+            <span>{liveWpm} <span className="text-yellow-400/60">wpm</span></span>
+            <span>{liveAccuracy}% <span className="text-yellow-400/60">acc</span></span>
           </div>
           <div className="flex justify-end mb-1">
             <span
@@ -173,7 +174,15 @@ export function TypingArea({
       </div>
 
       {testState === 'running' && (
-        <div className="flex justify-center mt-6">
+        <div className="flex justify-center gap-4 mt-6">
+          {duration === 'infinite' && (
+            <button
+              onClick={onEndTest}
+              className="text-xs text-gray-500 hover:text-gray-300 transition-colors font-mono"
+            >
+              end
+            </button>
+          )}
           <button
             onClick={onRestart}
             className="text-xs text-gray-700 hover:text-gray-500 transition-colors font-mono"
