@@ -27,6 +27,25 @@
   animation: bounce-x 0.8s ease-in-out infinite;
 }
 
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.15s ease-out;
+}
+
+@keyframes flash-scale {
+  0%   { opacity: 1; transform: scale(1); }
+  40%  { opacity: 0.4; transform: scale(1.4); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.animate-flash {
+  animation: flash-scale 0.35s ease-out;
+}
+
 body {
   margin: 0;
 }

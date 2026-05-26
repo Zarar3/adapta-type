@@ -22,6 +22,12 @@ export function ResultsScreen({ results, onRestart, onPracticePattern }: Props) 
         duration={results.duration}
       />
 
+      <div className="flex justify-center gap-8 mb-4 text-sm font-mono text-gray-500">
+        <span>peak <span className="text-gray-200">{results.peakWpm}</span> wpm</span>
+        <span>best streak <span className="text-gray-200">{results.longestPerfectStreak}</span></span>
+        <span>cleared <span className="text-green-400">{Object.keys(results.ngramGraduated).length}</span></span>
+      </div>
+
       <div className="bg-gray-900 rounded-lg p-6 mb-8">
         <WpmGraph data={results.wpmHistory} duration={results.duration} difficultyHistory={results.difficultyHistory} />
       </div>

@@ -6,6 +6,7 @@ import { calcWpm, calcRawWpm, calcAccuracy } from '../lib/statsCalculator';
 import type { CharState, TestState, TimedMode, WpmDataPoint, TestResults, DifficultyChange } from '../types';
 
 function streakThreshold(duration: TimedMode): number {
+  if (duration === 'infinite') return 5;
   if (duration <= 15) return 3;
   if (duration <= 60) return 5;
   return 7; // 120s
@@ -33,6 +34,7 @@ interface EngineState {
   difficultyHistory: DifficultyChange[];  // when difficulty changed during the test
   showLineHint: boolean;                  // true until the first line is completed
   perfectWordStreak: number;              // consecutive fully-correct words
+  longestPerfectStreak: number;           // peak streak achieved during this test
   errorWordStreak: number;               // consecutive words with any mistake (for difficulty down)
   currentWordHadError: boolean;           // any wrong key this word, even if backspaced
   correctChars: number;
@@ -106,7 +108,7 @@ function buildInitialState(duration: TimedMode): EngineState {
   return {
     testState: 'idle',
     duration,
-    timeLeft: duration,
+    timeLeft: duration === 'infinite' ? 0 : duration,
     line: makeLineData(generateLine({}, 3, 1)),
     currentWord: 0,
     currentChar: 0,
@@ -119,6 +121,7 @@ function buildInitialState(duration: TimedMode): EngineState {
     difficultyHistory: [],
     showLineHint: true,
     perfectWordStreak: 0,
+    longestPerfectStreak: 0,
     errorWordStreak: 0,
     currentWordHadError: false,
     correctChars: 0,
@@ -150,13 +153,16 @@ export function useTypingEngine() {
 
   const finishTest = useCallback((s: EngineState) => {
     stopTicker();
-    const elapsedMs = s.duration * 1000;
+    const elapsedMs = s.duration === 'infinite' ? s.timeLeft * 1000 : (s.duration as number) * 1000;
     const wpm = calcWpm(s.correctChars, elapsedMs);
     const rawWpm = calcRawWpm(s.totalChars, elapsedMs);
     const accuracy = calcAccuracy(s.correctChars, s.totalChars);
+    const peakWpm = s.wpmHistory.length > 0 ? Math.max(...s.wpmHistory.map(p => p.wpm)) : 0;
     const results: TestResults = {
       wpm, rawWpm, accuracy,
-      duration: s.duration,
+      duration: s.duration === 'infinite' ? s.timeLeft : s.duration,
+      peakWpm,
+      longestPerfectStreak: s.longestPerfectStreak,
       wpmHistory: s.wpmHistory,
       ngramMistakes: s.ngrams,
       ngramGraduated: s.ngramGraduated,
@@ -187,7 +193,6 @@ export function useTypingEngine() {
       const s = stateRef.current;
       secondCountRef.current += 1;
       const elapsed = secondCountRef.current * 1000;
-      const timeLeft = s.duration - secondCountRef.current;
       const wpm = calcWpm(s.correctChars, elapsed);
       const rawWpm = calcRawWpm(s.totalChars, elapsed);
 
@@ -198,31 +203,41 @@ export function useTypingEngine() {
         errors: s.errorCount,
       };
 
-      if (timeLeft <= 0) {
+      if (s.duration === 'infinite') {
+        // Count up; never auto-finish
         setState(prev => ({
           ...prev,
-          timeLeft: 0,
+          timeLeft: secondCountRef.current,
           wpmHistory: [...prev.wpmHistory, newPoint],
         }));
-        // Finish is called via effect watching timeLeft
       } else {
-        setState(prev => ({
-          ...prev,
-          timeLeft,
-          wpmHistory: [...prev.wpmHistory, newPoint],
-        }));
+        const timeLeft = (s.duration as number) - secondCountRef.current;
+        if (timeLeft <= 0) {
+          setState(prev => ({
+            ...prev,
+            timeLeft: 0,
+            wpmHistory: [...prev.wpmHistory, newPoint],
+          }));
+          // Finish is called via effect watching timeLeft
+        } else {
+          setState(prev => ({
+            ...prev,
+            timeLeft,
+            wpmHistory: [...prev.wpmHistory, newPoint],
+          }));
+        }
       }
     }, 1000);
 
     void initialState;
   }, []);
 
-  // Watch for timeLeft hitting 0
+  // Watch for timeLeft hitting 0 (not applicable to infinite mode)
   useEffect(() => {
-    if (state.testState === 'running' && state.timeLeft <= 0) {
+    if (state.testState === 'running' && state.timeLeft <= 0 && state.duration !== 'infinite') {
       finishTest(stateRef.current);
     }
-  }, [state.timeLeft, state.testState, finishTest]);
+  }, [state.timeLeft, state.testState, state.duration, finishTest]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     // Ignore modifier keys and function keys
@@ -280,8 +295,11 @@ export function useTypingEngine() {
         const { ngrams: updatedNgrams, ngramStreaks: updatedStreaks, ngramGraduated: updatedGraduated, ngramStats: updatedStats } =
           updateStreaks(word, wordStates, ngramsAfterPromotion, next.ngramStreaks, next.ngramGraduated, next.ngramStats);
 
+        const elapsedT = next.duration === 'infinite'
+          ? next.timeLeft
+          : (next.duration as number) - next.timeLeft;
         const updatedDifficultyHistory = newDifficulty !== next.difficultyLevel
-          ? [...next.difficultyHistory, { t: next.duration - next.timeLeft, level: newDifficulty }]
+          ? [...next.difficultyHistory, { t: elapsedT, level: newDifficulty }]
           : next.difficultyHistory;
 
         const shared = {
@@ -292,6 +310,7 @@ export function useTypingEngine() {
           difficultyLevel: newDifficulty,
           difficultyHistory: updatedDifficultyHistory,
           perfectWordStreak: adjustedStreak,
+          longestPerfectStreak: Math.max(next.longestPerfectStreak, newStreak),
           errorWordStreak: adjustedErrorStreak,
           currentWordHadError: false,
         };

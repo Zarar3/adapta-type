@@ -16,7 +16,9 @@ export interface TestResults {
   wpm: number;
   rawWpm: number;
   accuracy: number;
-  duration: number;
+  duration: number;        // elapsed seconds (for infinite: actual elapsed, otherwise mode duration)
+  peakWpm: number;
+  longestPerfectStreak: number;
   wpmHistory: WpmDataPoint[];
   ngramMistakes: Record<string, number>;
   ngramGraduated: Record<string, number>;
@@ -24,4 +26,4 @@ export interface TestResults {
 }
 
 export type TestState = 'idle' | 'running' | 'finished';
-export type TimedMode = 15 | 30 | 60 | 120;
+export type TimedMode = 15 | 30 | 60 | 120 | 'infinite';

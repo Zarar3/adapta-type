@@ -5,11 +5,13 @@ import { ResultsScreen } from './components/Results/ResultsScreen';
 import { PatternWall } from './components/PatternWall/PatternWall';
 import { useTypingEngine } from './hooks/useTypingEngine';
 import { usePatternLibrary } from './hooks/usePatternLibrary';
+import { useSound } from './hooks/useSound';
 import type { TimedMode } from './types';
 
 export default function App() {
   const { state, handleKeyDown, reset, changeDuration, startFocusedSession } = useTypingEngine();
   const { library, addFromSession, markCompleted, recordFocusedSession } = usePatternLibrary();
+  const { enabled: soundEnabled, toggle: toggleSound, playCorrect, playWrong } = useSound();
   const [view, setView] = useState<'typing' | 'wall'>('typing');
 
   const goHome = useCallback(() => { reset(); setView('typing'); }, [reset]);
@@ -49,7 +51,13 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 flex flex-col">
-      <Header view={view} onToggleView={() => setView(v => v === 'typing' ? 'wall' : 'typing')} onLogoClick={goHome} />
+      <Header
+        view={view}
+        onToggleView={() => setView(v => v === 'typing' ? 'wall' : 'typing')}
+        onLogoClick={goHome}
+        soundEnabled={soundEnabled}
+        onToggleSound={toggleSound}
+      />
 
       <main className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         {view === 'wall' ? (
@@ -73,8 +81,13 @@ export default function App() {
             difficultyLevel={state.difficultyLevel}
             focusedPattern={state.focusedPattern}
             showLineHint={state.showLineHint}
+            correctChars={state.correctChars}
+            totalChars={state.totalChars}
             onKeyDown={handleKeyDown}
             onChangeDuration={changeDuration}
+            onRestart={handleRestart}
+            playCorrect={playCorrect}
+            playWrong={playWrong}
           />
         )}
       </main>
