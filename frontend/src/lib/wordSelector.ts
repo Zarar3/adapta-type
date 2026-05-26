@@ -74,6 +74,29 @@ export function hasSufficientCoverage(pattern: string): boolean {
   return false;
 }
 
+export function generateWord(
+  ngrams: Record<string, number>,
+  difficulty = 1,
+  exclude: string[] = [],
+): string {
+  const ngramKeys = Object.keys(ngrams);
+  const tier = DIFFICULTY_TIERS[Math.min(Math.max(difficulty, 1), 4) - 1];
+
+  if (ngramKeys.length === 0) {
+    const src = tier.length > 0 ? tier : WORD_LIST;
+    const pool = src.filter(w => !exclude.includes(w));
+    const pick = pool.length > 0 ? pool : src;
+    return pick[Math.floor(Math.random() * pick.length)];
+  }
+
+  const hasPattern = (w: string) => ngramKeys.some(ng => w.includes(ng));
+  const tierPool = tier.filter(hasPattern);
+  const base = tierPool.length > 0 ? tierPool : WORD_LIST.filter(hasPattern);
+  const pool = base.filter(w => !exclude.includes(w));
+  const pick = pool.length > 0 ? pool : base;
+  return pick[Math.floor(Math.random() * pick.length)];
+}
+
 export function generateLine(
   ngrams: Record<string, number>,
   count = 12,

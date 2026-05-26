@@ -1,16 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { generateLine, hasSufficientCoverage } from '../lib/wordSelector';
+import { generateLine, generateWord, hasSufficientCoverage } from '../lib/wordSelector';
 import { updateNgramStats, promoteNgrams } from '../lib/ngramTracker';
 import type { NgramStats } from '../lib/ngramTracker';
 import { calcWpm, calcRawWpm, calcAccuracy } from '../lib/statsCalculator';
 import type { CharState, TestState, TimedMode, WpmDataPoint, TestResults, DifficultyChange } from '../types';
-
-function wordsPerLine(duration: TimedMode): number {
-  if (duration <= 15) return 6;
-  if (duration <= 30) return 9;
-  if (duration <= 60) return 12;
-  return 16;
-}
 
 interface LineData {
   words: string[];
@@ -107,7 +100,7 @@ function buildInitialState(duration: TimedMode): EngineState {
     testState: 'idle',
     duration,
     timeLeft: duration,
-    line: makeLineData(generateLine({}, wordsPerLine(duration))),
+    line: makeLineData(generateLine({}, 2, 1)),
     currentWord: 0,
     currentChar: 0,
     ngrams: {},
@@ -274,9 +267,6 @@ export function useTypingEngine() {
         const { ngrams: updatedNgrams, ngramStreaks: updatedStreaks, ngramGraduated: updatedGraduated, ngramStats: updatedStats } =
           updateStreaks(word, wordStates, ngramsAfterPromotion, next.ngramStreaks, next.ngramGraduated, next.ngramStats);
 
-        const isLastWord = currentWord === line.words.length - 1;
-
-        // Record every difficulty change (up or down), mid-line or at line boundary
         const updatedDifficultyHistory = newDifficulty !== next.difficultyLevel
           ? [...next.difficultyHistory, { t: next.duration - next.timeLeft, level: newDifficulty }]
           : next.difficultyHistory;
@@ -292,20 +282,23 @@ export function useTypingEngine() {
           currentWordHadError: false,
         };
 
-        if (isLastWord) {
-          const lineNgrams = next.focusedPattern
-            ? { [next.focusedPattern]: 5 }
-            : updatedNgrams;
-          return {
-            ...next,
-            ...shared,
-            showLineHint: false,
-            line: makeLineData(generateLine(lineNgrams, wordsPerLine(next.duration), newDifficulty)),
-            currentWord: 0,
-            currentChar: 0,
-          };
-        }
-        return { ...next, ...shared, currentWord: currentWord + 1, currentChar: 0 };
+        // Always slide: completed word drops off, queued word moves to position 0, new word fills position 1
+        const lineNgrams = next.focusedPattern
+          ? { [next.focusedPattern]: 5 }
+          : updatedNgrams;
+        const nextWord = generateWord(lineNgrams, newDifficulty, [word, line.words[1]]);
+        const newWords = [line.words[1], nextWord];
+        return {
+          ...next,
+          ...shared,
+          showLineHint: false,
+          line: {
+            words: newWords,
+            charStates: newWords.map(w => Array(w.length).fill('untyped') as CharState[]),
+          },
+          currentWord: 0,
+          currentChar: 0,
+        };
       }
 
       // Regular character — only accept up to word length, never auto-advance word
@@ -363,7 +356,7 @@ export function useTypingEngine() {
       ...buildInitialState(dur),
       focusedPattern: pattern,
       ngrams: focusNgrams,
-      line: makeLineData(generateLine(focusNgrams, wordsPerLine(dur))),
+      line: makeLineData(generateLine(focusNgrams, 2)),
     });
   }, [stopTicker]);
 
