@@ -78,13 +78,13 @@ describe('promoteNgrams', () => {
 
   it('never re-promotes a graduated pattern', () => {
     const stats = { th: e(4, 2) };
-    const result = promoteNgrams('the', stats, {}, { th: 1 }, {}, null);
+    const result = promoteNgrams('the', stats, {}, { th: 1 });
     expect(result).not.toHaveProperty('th');
   });
 
   it('leaves already-promoted patterns unchanged', () => {
     const stats = { th: e(4, 2) };
-    const result = promoteNgrams('the', stats, { th: 2 }, {}, {}, null);
+    const result = promoteNgrams('the', stats, { th: 2 }, {});
     expect(result['th']).toBe(2); // unchanged
   });
 });
