@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { generateLine, generateWord, hasSufficientCoverage } from '../lib/wordSelector';
-import { updateNgramStats, promoteNgrams, saveTimingToStorage, loadStoredTiming, getSlowPatterns, incrementSessionCount, updateStrugglingPatterns, markPatternPracticed } from '../lib/ngramTracker';
+import { updateNgramStats, promoteNgrams, saveTimingToStorage, loadStoredTiming, getSlowPatterns, getSlowPatternsFromStats, incrementSessionCount, updateStrugglingPatterns, markPatternPracticed } from '../lib/ngramTracker';
 import type { NgramStats, StoredTiming } from '../lib/ngramTracker';
 import { calcWpm, calcRawWpm, calcAccuracy } from '../lib/statsCalculator';
 import type { CharState, TestState, TimedMode, WpmDataPoint, TestResults, DifficultyChange } from '../types';
@@ -181,6 +181,7 @@ export function useTypingEngine() {
           .map(([ng, stat]) => [ng, stat.errors])
       ),
       ngramFocused: Object.keys(s.ngrams).filter(ng => !s.slowNgramKeys[ng]),
+      slowThisRun: getSlowPatternsFromStats(s.ngramStats),
       ngramGraduated: s.ngramGraduated,
       difficultyHistory: s.difficultyHistory,
     };

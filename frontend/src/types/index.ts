@@ -22,6 +22,7 @@ export interface TestResults {
   wpmHistory: WpmDataPoint[];
   ngramMistakes: Record<string, number>;
   ngramFocused: string[];              // error-promoted patterns still active at test end
+  slowThisRun: string[];               // bigrams identified as slow from this run's timing data
   ngramGraduated: Record<string, number>;
   difficultyHistory: DifficultyChange[];
 }

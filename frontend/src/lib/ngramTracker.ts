@@ -133,6 +133,22 @@ export function getSlowPatterns(): SlowPattern[] {
 }
 
 /**
+ * Computes slow bigrams from a single session's NgramStats (not cross-session storage).
+ * Uses the same threshold logic as getSlowPatterns but operates on in-memory data only.
+ */
+export function getSlowPatternsFromStats(stats: NgramStats): string[] {
+  const qualifying = Object.entries(stats)
+    .filter(([ng, s]) => ng.length === 2 && s.timedCount >= MIN_TIMING_SAMPLES);
+  if (qualifying.length === 0) return [];
+  const totalMs = qualifying.reduce((sum, [, s]) => sum + s.totalMs, 0);
+  const totalCount = qualifying.reduce((sum, [, s]) => sum + s.timedCount, 0);
+  const overallAvg = totalMs / totalCount;
+  return qualifying
+    .filter(([, s]) => (s.totalMs / s.timedCount) >= overallAvg * SLOW_MULTIPLIER)
+    .map(([ng]) => ng);
+}
+
+/**
  * Called once per word completion.
  * Promotes bigrams (or trigrams) from ngramStats to the active focus set
  * when they meet the error threshold or are consistently slow.
