@@ -9,7 +9,7 @@ import type { TimedMode } from './types';
 
 export default function App() {
   const { state, handleKeyDown, reset, changeDuration, startFocusedSession } = useTypingEngine();
-  const { library, addFromSession, markCompleted } = usePatternLibrary();
+  const { library, addFromSession, markCompleted, recordFocusedSession } = usePatternLibrary();
   const [view, setView] = useState<'typing' | 'wall'>('typing');
 
   const goHome = useCallback(() => { reset(); setView('typing'); }, [reset]);
@@ -32,10 +32,13 @@ export default function App() {
   useEffect(() => {
     if (prevTestStateRef.current !== 'finished' && state.testState === 'finished' && state.results) {
       addFromSession(state.results.ngramMistakes, state.results.ngramGraduated);
-      if (state.focusedPattern) markCompleted(state.focusedPattern);
+      if (state.focusedPattern) {
+        markCompleted(state.focusedPattern);
+        recordFocusedSession(state.focusedPattern, state.results.wpm, state.results.accuracy);
+      }
     }
     prevTestStateRef.current = state.testState;
-  }, [state.testState, state.results, state.focusedPattern, addFromSession, markCompleted]);
+  }, [state.testState, state.results, state.focusedPattern, addFromSession, markCompleted, recordFocusedSession]);
 
   const handlePracticePattern = useCallback((pattern: string, duration: TimedMode) => {
     startFocusedSession(pattern, duration);

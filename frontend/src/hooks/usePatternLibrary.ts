@@ -6,6 +6,9 @@ export interface PatternRecord {
   pattern: string;
   totalErrors: number;
   completed: boolean;
+  bestWpm?: number;
+  bestAccuracy?: number;
+  sessionCount?: number;
 }
 
 function loadLibrary(): Record<string, PatternRecord> {
@@ -32,6 +35,7 @@ export function usePatternLibrary() {
       const updated = { ...prev };
       for (const [pattern, errors] of Object.entries(mistakes)) {
         updated[pattern] = {
+          ...updated[pattern],
           pattern,
           totalErrors: (updated[pattern]?.totalErrors ?? 0) + errors,
           completed: updated[pattern]?.completed ?? false,
@@ -54,5 +58,22 @@ export function usePatternLibrary() {
     });
   }, []);
 
-  return { library, addFromSession, markCompleted };
+  const recordFocusedSession = useCallback((pattern: string, wpm: number, accuracy: number) => {
+    setLibrary(prev => {
+      const existing = prev[pattern];
+      if (!existing) return prev;
+      const updated = {
+        ...prev,
+        [pattern]: {
+          ...existing,
+          sessionCount: (existing.sessionCount ?? 0) + 1,
+          bestWpm: existing.bestWpm !== undefined ? Math.max(existing.bestWpm, wpm) : wpm,
+          bestAccuracy: existing.bestAccuracy !== undefined ? Math.max(existing.bestAccuracy, accuracy) : accuracy,
+        },
+      };
+      return persist(updated);
+    });
+  }, []);
+
+  return { library, addFromSession, markCompleted, recordFocusedSession };
 }

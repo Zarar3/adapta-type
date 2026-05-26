@@ -9,20 +9,49 @@ interface Props {
 
 const MODES: TimedMode[] = [15, 30, 60, 120];
 
-function PatternCard({ record, onPractice }: { record: PatternRecord; onPractice: (pattern: string, duration: TimedMode) => void }) {
-  const [picking, setPicking] = useState(false);
-  const { pattern, completed } = record;
+interface CardProps {
+  record: PatternRecord;
+  isOpen: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+  onPractice: (pattern: string, duration: TimedMode) => void;
+}
 
-  const colorClasses = completed
+function PatternCard({ record, isOpen, onOpen, onClose, onPractice }: CardProps) {
+  const { pattern, completed, bestWpm, bestAccuracy, sessionCount } = record;
+
+  const borderClasses = completed
     ? 'border-green-500/30 bg-green-950/15 hover:border-green-400/50'
     : 'border-red-500/40 bg-red-950/20 hover:border-red-400/70';
 
-  if (picking) {
+  const patternTextClass = completed ? 'text-green-300' : 'text-gray-100';
+
+  if (isOpen) {
     return (
-      <div className={`flex flex-col items-center gap-3 px-6 py-5 rounded-xl border ${colorClasses}`}>
-        <span className={`font-mono text-3xl tracking-widest font-semibold ${completed ? 'text-green-300' : 'text-gray-100'}`}>
+      <div className={`flex flex-col items-center gap-3 px-6 py-5 rounded-xl border ${borderClasses}`}>
+        <span className={`font-mono text-3xl tracking-widest font-semibold ${patternTextClass}`}>
           {pattern}
         </span>
+
+        <div className="animate-fade-in flex flex-col items-center gap-1">
+          {sessionCount && sessionCount > 0 ? (
+            <>
+              <div className="flex items-center gap-3 text-sm font-mono">
+                <span className="text-yellow-400 font-semibold">{bestWpm} wpm</span>
+                <span className="text-gray-700">·</span>
+                <span className="text-gray-400">{bestAccuracy}% acc</span>
+              </div>
+              <span className="text-xs text-gray-600">
+                {sessionCount} session{sessionCount !== 1 ? 's' : ''}
+              </span>
+            </>
+          ) : (
+            <span className="text-xs text-gray-600">no sessions yet</span>
+          )}
+        </div>
+
+        <div className="w-full h-px bg-gray-800" />
+
         <p className="text-xs text-gray-500">choose duration</p>
         <div className="flex gap-2">
           {MODES.map(m => (
@@ -35,7 +64,10 @@ function PatternCard({ record, onPractice }: { record: PatternRecord; onPractice
             </button>
           ))}
         </div>
-        <button onClick={() => setPicking(false)} className="text-xs text-gray-700 hover:text-gray-500 transition-colors">
+        <button
+          onClick={onClose}
+          className="text-xs text-gray-700 hover:text-gray-500 transition-colors"
+        >
           cancel
         </button>
       </div>
@@ -44,10 +76,10 @@ function PatternCard({ record, onPractice }: { record: PatternRecord; onPractice
 
   return (
     <button
-      onClick={() => setPicking(true)}
-      className={`flex flex-col items-center gap-2 px-6 py-5 rounded-xl border transition-all duration-150 hover:scale-105 group ${colorClasses}`}
+      onClick={onOpen}
+      className={`flex flex-col items-center gap-2 px-6 py-5 rounded-xl border transition-all duration-150 hover:scale-105 group ${borderClasses}`}
     >
-      <span className={`font-mono text-3xl tracking-widest font-semibold ${completed ? 'text-green-300' : 'text-gray-100'}`}>
+      <span className={`font-mono text-3xl tracking-widest font-semibold ${patternTextClass}`}>
         {pattern}
       </span>
       {completed
@@ -59,6 +91,8 @@ function PatternCard({ record, onPractice }: { record: PatternRecord; onPractice
 }
 
 export function PatternWall({ library, onPractice }: Props) {
+  const [activePattern, setActivePattern] = useState<string | null>(null);
+
   const entries = Object.values(library).sort((a, b) => b.totalErrors - a.totalErrors);
 
   if (entries.length === 0) {
@@ -74,6 +108,15 @@ export function PatternWall({ library, onPractice }: Props) {
 
   const pending = entries.filter(e => !e.completed);
   const done = entries.filter(e => e.completed);
+
+  const makeCardProps = (p: PatternRecord) => ({
+    key: p.pattern,
+    record: p,
+    isOpen: activePattern === p.pattern,
+    onOpen: () => setActivePattern(p.pattern),
+    onClose: () => setActivePattern(null),
+    onPractice,
+  });
 
   return (
     <div className="w-full max-w-4xl mx-auto">
@@ -93,7 +136,7 @@ export function PatternWall({ library, onPractice }: Props) {
             needs practice
           </h2>
           <div className="flex flex-wrap gap-3">
-            {pending.map(p => <PatternCard key={p.pattern} record={p} onPractice={onPractice} />)}
+            {pending.map(p => <PatternCard {...makeCardProps(p)} />)}
           </div>
         </section>
       )}
@@ -104,7 +147,7 @@ export function PatternWall({ library, onPractice }: Props) {
             mastered
           </h2>
           <div className="flex flex-wrap gap-3">
-            {done.map(p => <PatternCard key={p.pattern} record={p} onPractice={onPractice} />)}
+            {done.map(p => <PatternCard {...makeCardProps(p)} />)}
           </div>
         </section>
       )}
