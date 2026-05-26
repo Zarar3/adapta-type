@@ -53,7 +53,9 @@ function wordTypingScore(word: string): number {
   return keyTotal * 0.6 + word.length * 0.4;
 }
 
-const _scored = WORD_LIST.map(w => [w, wordTypingScore(w)] as [string, number])
+// Use only the most common words for normal play; full list is available for pattern fallback
+const COMMON_POOL_SIZE = 1500;
+const _scored = WORD_LIST.slice(0, COMMON_POOL_SIZE).map(w => [w, wordTypingScore(w)] as [string, number])
   .sort((a, b) => a[1] - b[1]);
 const _n = _scored.length;
 
