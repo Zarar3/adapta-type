@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { generateLine, generateWord, hasSufficientCoverage } from '../lib/wordSelector';
-import { updateNgramStats, promoteNgrams, saveTimingToStorage, loadStoredTiming, getSlowPatterns, incrementSessionCount, ERROR_MIN, ERROR_RATE_MIN } from '../lib/ngramTracker';
+import { updateNgramStats, promoteNgrams, saveTimingToStorage, loadStoredTiming, getSlowPatterns, incrementSessionCount, updateStrugglingPatterns, markPatternPracticed, ERROR_MIN, ERROR_RATE_MIN } from '../lib/ngramTracker';
 import type { NgramStats, StoredTiming } from '../lib/ngramTracker';
 import { calcWpm, calcRawWpm, calcAccuracy } from '../lib/statsCalculator';
 import type { CharState, TestState, TimedMode, WpmDataPoint, TestResults, DifficultyChange } from '../types';
@@ -173,15 +173,16 @@ export function useTypingEngine() {
       wpmHistory: s.wpmHistory,
       ngramMistakes: Object.fromEntries(
         Object.entries(s.ngramStats)
-          .filter(([, stat]) => stat.errors >= ERROR_MIN && stat.errors / stat.seen >= ERROR_RATE_MIN)
+          .filter(([, stat]) => stat.errors > 0)
           .map(([ng, stat]) => [ng, stat.errors])
       ),
       ngramGraduated: s.ngramGraduated,
       difficultyHistory: s.difficultyHistory,
     };
 
-    // Persist per-bigram timing to localStorage for cross-session detection
+    // Persist per-bigram timing and struggling patterns to localStorage
     saveTimingToStorage(s.ngramStats);
+    updateStrugglingPatterns(s.ngramStats, s.ngramGraduated);
     incrementSessionCount();
     storedTimingRef.current = loadStoredTiming();
 
@@ -405,6 +406,7 @@ export function useTypingEngine() {
     stopTicker();
     secondCountRef.current = 0;
     startTimeRef.current = null;
+    markPatternPracticed(pattern);
     const focusNgrams = { [pattern]: 5 };
     setDuration(dur);
     setState({

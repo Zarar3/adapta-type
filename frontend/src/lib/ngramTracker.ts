@@ -179,4 +179,65 @@ export function promoteNgrams(
   return result;
 }
 
+// ── Persistent struggling patterns ────────────────────────────────────────────
+const STRUGGLING_KEY = 'adapta-type-struggling';
+
+interface StrugglingEntry { rate: number; practiceCount: number; }
+type StrugglingMap = Record<string, StrugglingEntry>;
+
+export function loadStrugglingPatterns(): StrugglingMap {
+  try { return JSON.parse(localStorage.getItem(STRUGGLING_KEY) ?? '{}'); } catch { return {}; }
+}
+
+function saveStrugglingMap(map: StrugglingMap): void {
+  try { localStorage.setItem(STRUGGLING_KEY, JSON.stringify(map)); } catch { /* silent */ }
+}
+
+/**
+ * Called at end of every test.
+ * Adds any pattern with ≥1 error, removes streak-graduated ones,
+ * and graduates patterns whose rate improved 1.5× after 3 practice sessions.
+ */
+export function updateStrugglingPatterns(
+  ngramStats: NgramStats,
+  ngramGraduated: Record<string, number>,
+): void {
+  const map = loadStrugglingMap();
+
+  // Remove patterns streak-graduated this run
+  for (const ng of Object.keys(ngramGraduated)) delete map[ng];
+
+  // Add new patterns that had any error this run
+  for (const [ng, stat] of Object.entries(ngramStats)) {
+    if (stat.errors > 0 && !(ng in ngramGraduated) && !(ng in map)) {
+      map[ng] = { rate: stat.errors / stat.seen, practiceCount: 0 };
+    }
+  }
+
+  // Graduate patterns improved 1.5× after ≥3 practice sessions
+  for (const ng of Object.keys(map)) {
+    const stat = ngramStats[ng];
+    if (!stat || stat.seen === 0) continue;
+    const entry = map[ng];
+    if (entry.practiceCount >= 3 && stat.errors / stat.seen < entry.rate / 1.5) {
+      delete map[ng];
+    }
+  }
+
+  saveStrugglingMap(map);
+}
+
+/** Called when a focused practice session starts for a pattern. */
+export function markPatternPracticed(pattern: string): void {
+  const map = loadStrugglingMap();
+  if (pattern in map) {
+    map[pattern] = { ...map[pattern], practiceCount: map[pattern].practiceCount + 1 };
+    saveStrugglingMap(map);
+  }
+}
+
+function loadStrugglingMap(): StrugglingMap {
+  return loadStrugglingPatterns();
+}
+
 export { ERROR_MIN, ERROR_RATE_MIN };

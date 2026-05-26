@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { StatsBar } from './StatsBar';
 import { WpmGraph } from './WpmGraph';
-import { getSlowPatterns, getSessionCount } from '../../lib/ngramTracker';
+import { getSlowPatterns, getSessionCount, loadStrugglingPatterns } from '../../lib/ngramTracker';
 import type { TestResults, TimedMode } from '../../types';
 
 const MODES: TimedMode[] = [15, 30, 60, 120];
@@ -47,7 +47,8 @@ export function ResultsScreen({ results, focusedPattern, onRestart, onPracticePa
       {/* Pattern wall */}
       {(() => {
         const slowPatterns = getSlowPatterns();
-        const struggled = Object.entries(results.ngramMistakes).sort(([, a], [, b]) => b - a);
+        const strugglingMap = loadStrugglingPatterns();
+        const struggled = Object.keys(strugglingMap);
         const cleared = Object.keys(results.ngramGraduated);
         const hasAnything = slowPatterns.length > 0 || struggled.length > 0 || cleared.length > 0;
 
@@ -103,7 +104,7 @@ export function ResultsScreen({ results, focusedPattern, onRestart, onPracticePa
               <div className="mb-4">
                 <p className="text-xs text-gray-600 mb-2">still struggling <span className="text-gray-700">— click to practice</span></p>
                 <div className="flex flex-wrap gap-2">
-                  {struggled.map(([ng]) => (
+                  {struggled.map((ng) => (
                     <div key={ng}>
                       {pickingPattern === ng ? (
                         <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-yellow-400/15 border border-yellow-400/40">
