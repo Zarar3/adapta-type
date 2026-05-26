@@ -114,9 +114,9 @@ export function TypingArea({
 
       {testState === 'running' && (
         <>
-          <div className="flex justify-center gap-6 mb-4 text-sm font-mono text-yellow-400">
-            <span>{liveWpm} <span className="text-yellow-400/60">wpm</span></span>
-            <span>{liveAccuracy}% <span className="text-yellow-400/60">acc</span></span>
+          <div className="flex justify-center gap-6 mb-4 text-sm font-mono">
+            <span className="text-gray-300">{liveWpm} <span className="text-yellow-400/60">wpm</span></span>
+            <span className="text-gray-300">{liveAccuracy}% <span className="text-yellow-400/60">acc</span></span>
           </div>
           <div className="flex justify-end mb-1">
             <span
