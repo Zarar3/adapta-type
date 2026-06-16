@@ -369,6 +369,13 @@ export function useTypingEngine() {
           }
         }
 
+        // Always slide: completed word drops off, queued word moves to position 0, new word fills position 1
+        const lineNgrams = next.focusedPattern
+          ? { [next.focusedPattern]: 5 }
+          : updatedNgrams;
+        const wordBias = next.focusedPattern ? 1.0 : 0.9;
+        const updatedRecent = [...next.recentWords, word].slice(-3);
+
         const shared = {
           ngrams: updatedNgrams,
           ngramStreaks: updatedStreaks,
@@ -384,13 +391,6 @@ export function useTypingEngine() {
           errorWordStreak: adjustedErrorStreak,
           currentWordHadError: false,
         };
-
-        // Always slide: completed word drops off, queued word moves to position 0, new word fills position 1
-        const lineNgrams = next.focusedPattern
-          ? { [next.focusedPattern]: 5 }
-          : updatedNgrams;
-        const wordBias = next.focusedPattern ? 1.0 : 0.9;
-        const updatedRecent = [...next.recentWords, word].slice(-3);
         const excludeList = [...new Set([...updatedRecent, line.words[1], line.words[2]])];
         const nextWord = generateWord(lineNgrams, newDifficulty, excludeList, wordBias);
         const newWords = [line.words[1], line.words[2], nextWord];
