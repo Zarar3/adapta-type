@@ -193,6 +193,7 @@ export default function App() {
                 onEndTest={endTest}
                 playCorrect={playCorrect}
                 playWrong={playWrong}
+                spaceBlocked={state.spaceBlocked}
               />
             )}
             {raceStarted && state.testState === 'finished' && state.results && (

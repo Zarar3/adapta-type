@@ -54,6 +54,7 @@ interface EngineState {
   errorCount: number;
   wpmHistory: WpmDataPoint[];
   results: TestResults | null;
+  spaceBlocked: boolean;
 }
 
 function makeLineData(words: string[]): LineData {
@@ -174,6 +175,7 @@ function buildInitialState(
     errorCount: 0,
     wpmHistory: [],
     results: null,
+    spaceBlocked: false,
   };
 }
 
@@ -346,12 +348,12 @@ export function useTypingEngine() {
         if (currentChar > 0) {
           const newCharStates = line.charStates.map(row => [...row]);
           newCharStates[currentWord][currentChar - 1] = 'untyped';
-          return { ...next, line: { ...line, charStates: newCharStates }, currentChar: currentChar - 1 };
+          return { ...next, spaceBlocked: false, line: { ...line, charStates: newCharStates }, currentChar: currentChar - 1 };
         }
-        return next;
+        return { ...next, spaceBlocked: false };
       }
 
-      if (e.key === ' ' && currentChar === word.length) {
+      if (e.key === ' ' && currentChar === word.length && line.charStates[currentWord].every(s => s === 'correct')) {
         // Reset timing ref between words to avoid measuring pause time
         lastKeypressTimeRef.current = null;
         const wordStates = line.charStates[currentWord];
@@ -563,6 +565,12 @@ export function useTypingEngine() {
         };
       }
 
+      // Space pressed but word has errors or incomplete — block and optionally hint
+      if (e.key === ' ') {
+        if (currentChar === word.length) return { ...next, spaceBlocked: true };
+        return next;
+      }
+
       // Regular character — only accept up to word length, never auto-advance word
       if (currentChar >= word.length) return next;
 
@@ -577,6 +585,7 @@ export function useTypingEngine() {
 
       return {
         ...next,
+        spaceBlocked: false,
         line: { ...line, charStates: newCharStates },
         currentChar: currentChar + 1,
         correctChars: next.correctChars + (isCorrect ? 1 : 0),

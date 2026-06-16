@@ -38,6 +38,7 @@ interface Props {
   onEndTest?: () => void;
   playCorrect?: () => void;
   playWrong?: () => void;
+  spaceBlocked?: boolean;
 }
 
 const DIFFICULTY_LABELS = ['', 'easy', 'medium', 'hard', 'expert'];
@@ -46,7 +47,7 @@ export function TypingArea({
   testState, timeLeft, duration, gameMode, wordTarget, wordsCompleted, currentQuote, customText,
   line, currentWord, currentChar, ngramDisplayOrder, ngramStreaks, difficultyLevel, focusedPattern, showLineHint,
   correctChars, totalChars, onKeyDown, onChangeDuration, onChangeMode, onChangeWordTarget,
-  onChangeCustomText, onStartCustom, onRestart, onEndTest, playCorrect, playWrong,
+  onChangeCustomText, onStartCustom, onRestart, onEndTest, playCorrect, playWrong, spaceBlocked,
 }: Props) {
   const focusPatterns = focusedPattern ? [] : ngramDisplayOrder;
 
@@ -210,6 +211,9 @@ export function TypingArea({
           activeChar={currentChar}
           showHint={showLineHint}
         />
+        {spaceBlocked && (
+          <p className="text-center text-xs font-mono text-red-400/70 mt-2">fix the highlighted word first</p>
+        )}
       </div>
 
       {testState === 'running' && (
