@@ -375,6 +375,9 @@ export function useTypingEngine() {
           Object.entries(promoted).filter(([ng]) => hasSufficientCoverage(ng))
         );
 
+        let displayOrder = [...next.ngramDisplayOrder];
+        let waitQueue = [...next.ngramWaitQueue];
+
         // Only track streaks for patterns in active display slots; queue patterns wait silently
         const displaySlotNgrams = Object.fromEntries(
           Object.entries(ngramsAfterPromotion).filter(([ng]) => displayOrder.includes(ng))
@@ -400,9 +403,6 @@ export function useTypingEngine() {
         const justGraduated = new Set(
           Object.keys(ngramsAfterPromotion).filter(ng => !(ng in updatedNgrams))
         );
-
-        let displayOrder = [...next.ngramDisplayOrder];
-        let waitQueue = [...next.ngramWaitQueue];
 
         // Free slots when patterns graduate; pull from wait queue to fill them
         for (const ng of justGraduated) {
