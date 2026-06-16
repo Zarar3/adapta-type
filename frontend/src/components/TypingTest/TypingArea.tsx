@@ -39,6 +39,7 @@ interface Props {
   playCorrect?: () => void;
   playWrong?: () => void;
   spaceBlocked?: boolean;
+  isRaceMode?: boolean;
 }
 
 const DIFFICULTY_LABELS = ['', 'easy', 'medium', 'hard', 'expert'];
@@ -48,6 +49,7 @@ export function TypingArea({
   line, currentWord, currentChar, ngramDisplayOrder, ngramStreaks, difficultyLevel, focusedPattern, showLineHint,
   correctChars, totalChars, onKeyDown, onChangeDuration, onChangeMode, onChangeWordTarget,
   onChangeCustomText, onStartCustom, onRestart, onEndTest, playCorrect, playWrong, spaceBlocked,
+  isRaceMode = false,
 }: Props) {
   const focusPatterns = focusedPattern ? [] : ngramDisplayOrder;
 
@@ -95,7 +97,7 @@ export function TypingArea({
 
   return (
     <div
-      className="w-full max-w-5xl mx-auto cursor-text"
+      className={`w-full ${isRaceMode ? 'max-w-2xl' : 'max-w-5xl'} mx-auto cursor-text`}
       onClick={() => inputRef.current?.focus()}
     >
       <input
@@ -107,17 +109,19 @@ export function TypingArea({
         aria-hidden
       />
 
-      <TimerBar
-        testState={testState}
-        timeLeft={timeLeft}
-        duration={duration}
-        gameMode={gameMode}
-        wordTarget={wordTarget}
-        wordsCompleted={wordsCompleted}
-        onChangeDuration={onChangeDuration}
-        onChangeMode={onChangeMode}
-        onChangeWordTarget={onChangeWordTarget}
-      />
+      {!isRaceMode && (
+        <TimerBar
+          testState={testState}
+          timeLeft={timeLeft}
+          duration={duration}
+          gameMode={gameMode}
+          wordTarget={wordTarget}
+          wordsCompleted={wordsCompleted}
+          onChangeDuration={onChangeDuration}
+          onChangeMode={onChangeMode}
+          onChangeWordTarget={onChangeWordTarget}
+        />
+      )}
 
       {gameMode === 'custom' && testState === 'idle' && (
         <div className="mb-6">
@@ -148,7 +152,7 @@ export function TypingArea({
         </p>
       )}
 
-      {testState === 'idle' && (
+      {testState === 'idle' && !isRaceMode && (
         <p className="text-center text-gray-400 dark:text-gray-600 text-sm mb-4">click here or start typing</p>
       )}
 
@@ -158,18 +162,20 @@ export function TypingArea({
             <span className="text-gray-600 dark:text-gray-300">{liveWpm} <span className="text-yellow-400/60">wpm</span></span>
             <span className="text-gray-600 dark:text-gray-300">{liveAccuracy}% <span className="text-yellow-400/60">acc</span></span>
           </div>
-          <div className="flex justify-end mb-1">
-            <span
-              key={flashKey}
-              className={`text-xs font-mono animate-flash ${
-                difficultyLevel >= 4 ? 'text-red-400' :
-                difficultyLevel >= 3 ? 'text-orange-400' :
-                difficultyLevel >= 2 ? 'text-yellow-400' : 'text-green-400'
-              }`}
-            >
-              {DIFFICULTY_LABELS[difficultyLevel]}
-            </span>
-          </div>
+          {!isRaceMode && (
+            <div className="flex justify-end mb-1">
+              <span
+                key={flashKey}
+                className={`text-xs font-mono animate-flash ${
+                  difficultyLevel >= 4 ? 'text-red-400' :
+                  difficultyLevel >= 3 ? 'text-orange-400' :
+                  difficultyLevel >= 2 ? 'text-yellow-400' : 'text-green-400'
+                }`}
+              >
+                {DIFFICULTY_LABELS[difficultyLevel]}
+              </span>
+            </div>
+          )}
         </>
       )}
 
@@ -177,7 +183,7 @@ export function TypingArea({
         <p className="text-center text-yellow-500/70 text-xs mb-3">caps lock is on</p>
       )}
 
-      {focusPatterns.length > 0 && testState !== 'idle' && (
+      {!isRaceMode && focusPatterns.length > 0 && testState !== 'idle' && (
         <div className="flex items-center gap-3 mb-3 flex-wrap">
           <span className="text-xs text-gray-400 dark:text-gray-500">focusing on:</span>
           {focusPatterns.map(pattern => {

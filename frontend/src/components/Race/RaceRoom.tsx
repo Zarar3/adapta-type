@@ -23,14 +23,14 @@ type BotDifficulty = 'easy' | 'medium' | 'hard';
 
 interface Props {
   roomId: string;
+  wordTarget: number;
+  onChangeWordTarget: (t: number) => void;
   onStart: () => void;
   wordsCompleted: number;
   currentWpm: number;
   isFinished: boolean;
   onLeave: () => void;
 }
-
-const WORD_TARGET = 50;
 const BOT_COUNT = 3;
 const TICK_MS = 100;
 
@@ -75,7 +75,7 @@ function makeBots(difficulty: BotDifficulty): Bot[] {
   }));
 }
 
-export function RaceRoom({ roomId, onStart, wordsCompleted, currentWpm, isFinished, onLeave }: Props) {
+export function RaceRoom({ roomId, wordTarget, onChangeWordTarget, onStart, wordsCompleted, currentWpm, isFinished, onLeave }: Props) {
   const [raceType, setRaceType] = useState<RaceType>(null);
   const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>('medium');
   const [bots, setBots] = useState<Bot[]>([]);
@@ -144,8 +144,8 @@ export function RaceRoom({ roomId, onStart, wordsCompleted, currentWpm, isFinish
           const newAcc = Math.max(bot.accuracyMin, Math.min(bot.accuracyMax, bot.accuracy + accDelta));
           const effectiveWpm = bot.wpm * (newAcc / 100);
           const newFloat = bot.progressFloat + (effectiveWpm / 60) * (TICK_MS / 1000);
-          const newProgress = Math.min(Math.floor(newFloat), WORD_TARGET);
-          const finished = newProgress >= WORD_TARGET;
+          const newProgress = Math.min(Math.floor(newFloat), wordTarget);
+          const finished = newProgress >= wordTarget;
           if (finished) newlyFinished.push(bot.label);
           return { ...bot, accuracy: newAcc, progressFloat: newFloat, progress: newProgress, finished };
         });
@@ -165,7 +165,7 @@ export function RaceRoom({ roomId, onStart, wordsCompleted, currentWpm, isFinish
 
     return () => clearInterval(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [botRaceStarted]);
+  }, [botRaceStarted, wordTarget]);
 
   // User finishes in bot race
   useEffect(() => {
@@ -187,7 +187,22 @@ export function RaceRoom({ roomId, onStart, wordsCompleted, currentWpm, isFinish
   if (raceType === null) {
     return (
       <div className="w-full max-w-md mx-auto animate-fade-in">
-        <h2 className="text-center text-gray-500 dark:text-gray-400 font-mono text-sm mb-8">race mode</h2>
+        <h2 className="text-center text-gray-500 dark:text-gray-400 font-mono text-sm mb-6">race mode</h2>
+        <div className="flex justify-center gap-2 mb-6">
+          {[20, 30, 40, 50].map(t => (
+            <button
+              key={t}
+              onClick={() => onChangeWordTarget(t)}
+              className={`px-4 py-1.5 rounded text-sm font-mono transition-colors ${
+                t === wordTarget
+                  ? 'bg-yellow-400 text-gray-900'
+                  : 'text-gray-500 hover:text-gray-300 dark:text-gray-600 dark:hover:text-gray-400'
+              }`}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
         <div className="grid grid-cols-2 gap-4 mb-6">
           <button
             onClick={() => setRaceType('bots')}
@@ -275,13 +290,13 @@ export function RaceRoom({ roomId, onStart, wordsCompleted, currentWpm, isFinish
                 <div className="flex justify-between text-xs font-mono mb-1">
                   <span className={isMe ? 'text-yellow-400' : 'text-gray-500 dark:text-gray-600'}>{label}</span>
                   <span className="text-gray-600 dark:text-gray-700">
-                    {wpm > 0 ? `${wpm} wpm · ` : ''}{accuracy !== null ? `${accuracy}% acc · ` : ''}{progress}/{WORD_TARGET}
+                    {wpm > 0 ? `${wpm} wpm · ` : ''}{accuracy !== null ? `${accuracy}% acc · ` : ''}{progress}/{wordTarget}
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2">
                   <div
                     className={`h-2 rounded-full transition-all duration-100 ${isMe ? 'bg-yellow-400' : 'bg-gray-500 dark:bg-gray-600'}`}
-                    style={{ width: `${Math.min((progress / WORD_TARGET) * 100, 100)}%` }}
+                    style={{ width: `${Math.min((progress / wordTarget) * 100, 100)}%` }}
                   />
                 </div>
               </div>
@@ -357,12 +372,12 @@ export function RaceRoom({ roomId, onStart, wordsCompleted, currentWpm, isFinish
             <div key={id}>
               <div className="flex justify-between text-xs font-mono mb-1">
                 <span className={isMe ? 'text-yellow-400' : 'text-gray-500 dark:text-gray-600'}>{label}</span>
-                <span className="text-gray-600 dark:text-gray-700">{p.wpm} wpm · {p.progress}/{WORD_TARGET}</span>
+                <span className="text-gray-600 dark:text-gray-700">{p.wpm} wpm · {p.progress}/{wordTarget}</span>
               </div>
               <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2">
                 <div
                   className={`h-2 rounded-full transition-all ${isMe ? 'bg-yellow-400' : 'bg-gray-500 dark:bg-gray-600'}`}
-                  style={{ width: `${Math.min((p.progress / WORD_TARGET) * 100, 100)}%` }}
+                  style={{ width: `${Math.min((p.progress / wordTarget) * 100, 100)}%` }}
                 />
               </div>
             </div>

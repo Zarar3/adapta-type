@@ -3,7 +3,7 @@ import { generateLine, generateWord, generateWordContaining, hasSufficientCovera
 import { updateNgramStats, promoteNgrams, saveTimingToStorage, loadStoredTiming, getSlowPatterns, getFlaggedSlowKeys, incrementSessionCount, updateStrugglingPatterns, markPatternPracticed, saveActiveNgrams, loadActiveNgrams, clearActiveNgrams } from '../lib/ngramTracker';
 import type { NgramStats, StoredTiming } from '../lib/ngramTracker';
 import { calcWpm, calcRawWpm, calcAccuracy } from '../lib/statsCalculator';
-import type { CharState, TestState, TimedMode, WpmDataPoint, TestResults, DifficultyChange, GameMode, WordCountTarget, Quote } from '../types';
+import type { CharState, TestState, TimedMode, WpmDataPoint, TestResults, DifficultyChange, GameMode, Quote } from '../types';
 
 function streakThreshold(duration: TimedMode): number {
   if (duration === 'infinite') return 5;
@@ -21,7 +21,7 @@ interface EngineState {
   testState: TestState;
   duration: TimedMode;
   gameMode: GameMode;
-  wordTarget: WordCountTarget | null;
+  wordTarget: number | null;
   wordsCompleted: number;
   fixedWords: string[] | null;
   fixedWordOffset: number;
@@ -118,7 +118,7 @@ function updateStreaks(
 }
 
 interface ModeOpts {
-  wordTarget?: WordCountTarget;
+  wordTarget?: number;
   fixedWords?: string[];
   quote?: Quote;
 }
@@ -637,7 +637,7 @@ export function useTypingEngine(requireCorrectWord = false) {
     });
   }, [stopTicker]);
 
-  const startWordCountSession = useCallback((target: WordCountTarget) => {
+  const startWordCountSession = useCallback((target: number) => {
     stopTicker();
     secondCountRef.current = 0;
     startTimeRef.current = null;

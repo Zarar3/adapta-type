@@ -21,6 +21,7 @@ export default function App() {
   const [wordTarget, setWordTarget] = useState<WordCountTarget>(25);
   const [customText, setCustomText] = useState('');
   const [raceRoomId, setRaceRoomId] = useState<string | null>(null);
+  const [raceWordTarget, setRaceWordTarget] = useState(30);
 
   const [theme, setTheme] = useState<'dark' | 'light'>(() =>
     (localStorage.getItem('adapta-type-theme') as 'dark' | 'light') ?? 'dark'
@@ -157,7 +158,9 @@ export default function App() {
           <div className="w-full flex flex-col items-center gap-8">
             <RaceRoom
               roomId={raceRoomId}
-              onStart={() => { startWordCountSession(50); setRaceStarted(true); }}
+              wordTarget={raceWordTarget}
+              onChangeWordTarget={setRaceWordTarget}
+              onStart={() => { startWordCountSession(raceWordTarget); setRaceStarted(true); }}
               wordsCompleted={state.wordsCompleted}
               currentWpm={state.wpmHistory.length > 0 ? state.wpmHistory[state.wpmHistory.length - 1].wpm : 0}
               isFinished={state.testState === 'finished'}
@@ -194,6 +197,7 @@ export default function App() {
                 playCorrect={playCorrect}
                 playWrong={playWrong}
                 spaceBlocked={state.spaceBlocked}
+                isRaceMode
               />
             )}
             {raceStarted && state.testState === 'finished' && state.results && (
