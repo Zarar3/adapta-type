@@ -19,6 +19,17 @@ function shuffleInitialSurviveOffsets(): { golden: number; freeze: number; bomb:
   };
 }
 
+// Reschedule a consumed special word. ~35% of the time it snaps onto another
+// type's pending future target, producing a combo word (gold/freeze, bomb/freeze,
+// gold/bomb, or all three) instead of always spawning a fresh standalone special.
+function rescheduleSpecial(newWc: number, baseMin: number, jitter: number, others: number[]): number {
+  const futureOthers = others.filter(o => o > newWc + 1);
+  if (futureOthers.length > 0 && Math.random() < 0.35) {
+    return futureOthers[Math.floor(Math.random() * futureOthers.length)];
+  }
+  return newWc + baseMin + Math.floor(Math.random() * jitter);
+}
+
 function streakThreshold(duration: TimedMode): number {
   if (duration === 'infinite') return 5;
   if (duration <= 15) return 3;
@@ -291,12 +302,15 @@ export function useTypingEngine(requireCorrectWord = false) {
       if (s.surviveScore > best) saveSurviveBest(s.surviveScore);
     }
 
-    // Persist per-bigram timing and struggling patterns to localStorage
-    saveTimingToStorage(s.ngramStats);
-    updateStrugglingPatterns(s.ngramStats, s.ngramGraduated);
-    saveActiveNgrams(s.ngrams);
-    incrementSessionCount();
-    storedTimingRef.current = loadStoredTiming();
+    // Persist per-bigram timing and struggling patterns to localStorage.
+    // Custom mode is free practice — it must not feed the adaptive n-gram profile.
+    if (s.gameMode !== 'custom') {
+      saveTimingToStorage(s.ngramStats);
+      updateStrugglingPatterns(s.ngramStats, s.ngramGraduated);
+      saveActiveNgrams(s.ngrams);
+      incrementSessionCount();
+      storedTimingRef.current = loadStoredTiming();
+    }
 
     // Fire-and-forget POST to backend
     const backendUrl = import.meta.env.VITE_BACKEND_URL as string;
@@ -606,8 +620,8 @@ export function useTypingEngine(requireCorrectWord = false) {
           if (isFreezeWord && !hadError) timeAdjust += 2;
           const newTimeLeft = Math.min(90, next.timeLeft + timeAdjust);
 
-          let newGoldenMode = hadError ? false : next.surviveGoldenMode;
-          let newGoldenTimeLeft = hadError ? 0 : next.surviveGoldenTimeLeft;
+          let newGoldenMode = next.surviveGoldenMode;
+          let newGoldenTimeLeft = next.surviveGoldenTimeLeft;
           let newGoldenCount = next.surviveGoldenCount;
           if (isGoldenWord && !hadError) {
             newGoldenMode = true;
@@ -616,14 +630,16 @@ export function useTypingEngine(requireCorrectWord = false) {
           }
 
           const newWc = wc + 1; // wordsCompleted after this press
+          // Reschedule consumed types, biasing toward combos (a fresh target may
+          // snap onto another pending special word so they land together).
           const nextGolden = isGoldenWord
-            ? newWc + 5 + Math.floor(Math.random() * 4)
+            ? rescheduleSpecial(newWc, 5, 4, [next.surviveNextFreezeWord, next.surviveNextBombWord])
             : next.surviveNextGoldenWord;
           const nextFreeze = isFreezeWord
-            ? newWc + 5 + Math.floor(Math.random() * 4)
+            ? rescheduleSpecial(newWc, 5, 4, [nextGolden, next.surviveNextBombWord])
             : next.surviveNextFreezeWord;
           const nextBomb = isBombWord
-            ? newWc + 7 + Math.floor(Math.random() * 4)
+            ? rescheduleSpecial(newWc, 7, 4, [nextGolden, nextFreeze])
             : next.surviveNextBombWord;
 
           // Activate bomb countdown if the word sliding into slot 0 is the bomb word
@@ -658,13 +674,14 @@ export function useTypingEngine(requireCorrectWord = false) {
           return { ...next, ...shared, ...surviveUpdates };
         }
 
-        // Fixed-word modes (quote/custom): advance window or finish
+        // Fixed-word modes (quote/custom): advance window
         if (next.fixedWords) {
           const nextOffset = next.fixedWordOffset + 1;
-          if (nextOffset + 2 >= next.fixedWords.length) {
+          const fwWords = next.fixedWords.slice(nextOffset, nextOffset + 3);
+          if (fwWords.length === 0) {
+            // Last word was just completed — effect will call finishTest
             return { ...next, ...shared, ...surviveUpdates, fixedWordOffset: nextOffset };
           }
-          const fwWords = next.fixedWords.slice(nextOffset, nextOffset + 3);
           return {
             ...next,
             ...shared,
@@ -776,8 +793,6 @@ export function useTypingEngine(requireCorrectWord = false) {
           survivePenaltyAppliedThisWord: true,
           survivePerfectCombo: 0,
           surviveComboMultiplier: 1,
-          surviveGoldenMode: false,
-          surviveGoldenTimeLeft: 0,
           surviveBombActive: bombExplosion ? false : next.surviveBombActive,
           surviveBombCountdown: bombExplosion ? 0 : next.surviveBombCountdown,
           surviveNextBombWord: nextBombWord,

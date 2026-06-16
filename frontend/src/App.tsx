@@ -137,14 +137,17 @@ export default function App() {
   const prevTestStateRef = useRef(state.testState);
   useEffect(() => {
     if (prevTestStateRef.current !== 'finished' && state.testState === 'finished' && state.results) {
-      addFromSession(state.results.ngramMistakes, state.results.ngramGraduated);
+      // Custom mode is free practice — keep it out of the adaptive pattern library.
+      if (gameMode !== 'custom') {
+        addFromSession(state.results.ngramMistakes, state.results.ngramGraduated);
+      }
       if (state.focusedPattern) {
         markCompleted(state.focusedPattern);
         recordFocusedSession(state.focusedPattern, state.results.wpm, state.results.accuracy);
       }
     }
     prevTestStateRef.current = state.testState;
-  }, [state.testState, state.results, state.focusedPattern, addFromSession, markCompleted, recordFocusedSession]);
+  }, [state.testState, state.results, state.focusedPattern, gameMode, addFromSession, markCompleted, recordFocusedSession]);
 
   const handlePracticePattern = useCallback((pattern: string, duration: TimedMode) => {
     startFocusedSession(pattern, duration);

@@ -280,6 +280,7 @@ export function TypingArea({
               <p><span className="text-red-400 font-bold">bomb word</span> → typo = −2s explosion</p>
               <p><span className="text-sky-300">freeze word</span> → correct = +2s bonus</p>
               <p><span className="text-yellow-400">5 clean words</span> → multiplier up (max 2×)</p>
+              <p><span className="text-fuchsia-400">combo word</span> → stacks effects (e.g. ✦❄ gold + freeze)</p>
               <p className="text-gray-600 pt-1">special words lose their highlight if you typo them</p>
             </div>
           )}
@@ -302,7 +303,7 @@ export function TypingArea({
             <span className="text-gray-600 dark:text-gray-300">{liveWpm} <span className="text-yellow-400/60">wpm</span></span>
             <span className="text-gray-600 dark:text-gray-300">{liveAccuracy}% <span className="text-yellow-400/60">acc</span></span>
           </div>
-          {!isRaceMode && (
+          {!isRaceMode && gameMode !== 'custom' && (
             <div className="flex justify-end mb-1">
               <span
                 key={flashKey}
@@ -323,7 +324,7 @@ export function TypingArea({
         <p className="text-center text-yellow-500/70 text-xs mb-3">caps lock is on</p>
       )}
 
-      {!isRaceMode && focusPatterns.length > 0 && testState !== 'idle' && (
+      {!isRaceMode && gameMode !== 'custom' && focusPatterns.length > 0 && testState !== 'idle' && (
         <div className="flex items-center gap-3 mb-3 flex-wrap">
           <span className="text-xs text-gray-400 dark:text-gray-500">focusing on:</span>
           {focusPatterns.map(pattern => {

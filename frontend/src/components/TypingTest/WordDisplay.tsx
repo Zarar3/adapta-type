@@ -68,7 +68,17 @@ export function WordDisplay({ words, charStates, isActive, activeWord, activeCha
         const isGolden = wordFlags?.golden === wi;
         const isBomb   = wordFlags?.bomb === wi;
         const isFreeze = wordFlags?.freeze === wi;
+        const isSpecial = isGolden || isBomb || isFreeze;
+        const isCombo = (Number(isGolden) + Number(isBomb) + Number(isFreeze)) >= 2;
         const isBombActive = isBomb && wi === 0; // bomb countdown only shown at slot 0
+
+        // Compose styling. Text color follows a priority (bomb > golden > freeze) so it
+        // stays legible; rings/glows from the other active flags layer on top, and combos
+        // get an extra outline so they read as "this word is more than one thing".
+        const textColor = isBomb ? 'text-red-500 font-bold' : isGolden ? 'text-yellow-400' : isFreeze ? 'text-sky-300' : '';
+        const glow = isBomb
+          ? 'drop-shadow-[0_0_8px_rgba(239,68,68,0.9)] animate-pulse'
+          : isGolden ? 'drop-shadow-[0_0_8px_rgba(250,204,21,0.8)]' : '';
 
         return (
           <span
@@ -76,15 +86,21 @@ export function WordDisplay({ words, charStates, isActive, activeWord, activeCha
             className={[
               'font-mono text-xl sm:text-3xl tracking-wide relative',
               wi === 2 ? 'animate-slide-in-right' : '',
-              isGolden ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.8)]' : '',
-              isBomb   ? 'text-red-500 font-bold drop-shadow-[0_0_8px_rgba(239,68,68,0.9)] animate-pulse' : '',
-              isFreeze ? 'text-sky-300 ring-1 ring-sky-400/50 rounded px-1' : '',
+              textColor,
+              glow,
+              isFreeze ? 'ring-1 ring-sky-400/50 rounded px-1' : '',
+              isCombo ? 'rounded px-1 ring-2 ring-fuchsia-400/70 bg-fuchsia-400/5 drop-shadow-[0_0_10px_rgba(217,70,239,0.6)]' : '',
             ].filter(Boolean).join(' ')}
           >
-            {/* Bomb countdown badge above the active bomb word */}
-            {isBombActive && wordFlags!.bombCountdown > 0 && (
-              <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-xs font-mono text-red-400 font-bold animate-pulse select-none">
-                {wordFlags!.bombCountdown}s
+            {/* Special-word badge: icons for each active effect, plus bomb countdown */}
+            {isSpecial && (
+              <span className="absolute -top-5 left-1/2 -translate-x-1/2 flex items-center gap-1 text-xs font-mono font-bold select-none whitespace-nowrap">
+                {isGolden && <span className="text-yellow-400">✦</span>}
+                {isFreeze && <span className="text-sky-300">❄</span>}
+                {isBomb && <span className="text-red-400 animate-pulse">✸</span>}
+                {isBombActive && wordFlags!.bombCountdown > 0 && (
+                  <span className="text-red-400 animate-pulse">{wordFlags!.bombCountdown}s</span>
+                )}
               </span>
             )}
             {word.split('').map((char, ci) => (
