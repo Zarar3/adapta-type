@@ -19,7 +19,9 @@ export default function App() {
           startWordCountSession, startQuoteSession, startCustomSession,
           startSurviveSession } = useTypingEngine(view === 'race' && raceStarted);
   const { library, addFromSession, markCompleted, recordFocusedSession, clearLibrary } = usePatternLibrary();
-  const { enabled: soundEnabled, toggle: toggleSound, playCorrect, playWrong } = useSound();
+  const { enabled: soundEnabled, toggle: toggleSound, playCorrect, playWrong,
+          playSurviveCleanWord, playSurviveGolden, playSurviveBombExplode,
+          playSurviveBombDefuse, playSurviveFreeze } = useSound();
   const [gameMode, setGameMode] = useState<GameMode>('timed');
   const [wordTarget, setWordTarget] = useState<WordCountTarget>(25);
   const [customText, setCustomText] = useState('');
@@ -167,6 +169,7 @@ export default function App() {
     nextBombWord: state.surviveNextBombWord,
     nextFreezeWord: state.surviveNextFreezeWord,
     lastWordScore: state.surviveLastWordScore,
+    currentWordHadError: state.currentWordHadError,
   } : null;
 
   return (
@@ -225,6 +228,11 @@ export default function App() {
                 onEndTest={endTest}
                 playCorrect={playCorrect}
                 playWrong={playWrong}
+                playSurviveCleanWord={playSurviveCleanWord}
+                playSurviveGolden={playSurviveGolden}
+                playSurviveBombExplode={playSurviveBombExplode}
+                playSurviveBombDefuse={playSurviveBombDefuse}
+                playSurviveFreeze={playSurviveFreeze}
                 spaceBlocked={state.spaceBlocked}
                 isRaceMode
                 surviveState={surviveState}
@@ -278,6 +286,11 @@ export default function App() {
             onEndTest={endTest}
             playCorrect={playCorrect}
             playWrong={playWrong}
+            playSurviveCleanWord={playSurviveCleanWord}
+            playSurviveGolden={playSurviveGolden}
+            playSurviveBombExplode={playSurviveBombExplode}
+            playSurviveBombDefuse={playSurviveBombDefuse}
+            playSurviveFreeze={playSurviveFreeze}
             surviveState={surviveState}
           />
         )}

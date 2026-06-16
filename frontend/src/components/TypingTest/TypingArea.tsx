@@ -24,6 +24,7 @@ export interface SurviveState {
   nextBombWord: number;
   nextFreezeWord: number;
   lastWordScore: { value: number; golden: boolean; id: number } | null;
+  currentWordHadError: boolean;
 }
 
 interface LineData {
@@ -60,10 +61,17 @@ interface Props {
   onEndTest?: () => void;
   playCorrect?: () => void;
   playWrong?: () => void;
+  playSurviveCleanWord?: () => void;
+  playSurviveGolden?: () => void;
+  playSurviveBombExplode?: () => void;
+  playSurviveBombDefuse?: () => void;
+  playSurviveFreeze?: () => void;
   spaceBlocked?: boolean;
   isRaceMode?: boolean;
   surviveState?: SurviveState | null;
 }
+
+interface ScorePopup { id: number; value: number; golden: boolean; }
 
 const DIFFICULTY_LABELS = ['', 'easy', 'medium', 'hard', 'expert'];
 
@@ -71,8 +79,9 @@ export function TypingArea({
   testState, timeLeft, duration, gameMode, wordTarget, wordsCompleted, currentQuote, customText,
   line, currentWord, currentChar, ngramDisplayOrder, ngramStreaks, difficultyLevel, focusedPattern, showLineHint,
   correctChars, totalChars, onKeyDown, onChangeDuration, onChangeMode, onChangeWordTarget,
-  onChangeCustomText, onStartCustom, onRestart, onEndTest, playCorrect, playWrong, spaceBlocked,
-  isRaceMode = false, surviveState = null,
+  onChangeCustomText, onStartCustom, onRestart, onEndTest, playCorrect, playWrong,
+  playSurviveCleanWord, playSurviveGolden, playSurviveBombExplode, playSurviveBombDefuse, playSurviveFreeze,
+  spaceBlocked, isRaceMode = false, surviveState = null,
 }: Props) {
   const focusPatterns = focusedPattern ? [] : ngramDisplayOrder;
 
@@ -112,18 +121,79 @@ export function TypingArea({
     }
   }, [difficultyLevel]);
 
+  // Score popup state — driven by surviveState.lastWordScore changes
+  const [scorePopups, setScorePopups] = useState<ScorePopup[]>([]);
+  const lastScoreIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    const lws = surviveState?.lastWordScore;
+    if (!lws || lws.id === lastScoreIdRef.current) return;
+    lastScoreIdRef.current = lws.id;
+    const popup: ScorePopup = { id: lws.id, value: lws.value, golden: lws.golden };
+    setScorePopups(p => [...p, popup]);
+    const t = setTimeout(() => setScorePopups(p => p.filter(x => x.id !== popup.id)), 900);
+    return () => clearTimeout(t);
+  }, [surviveState?.lastWordScore]);
+
+  // Survive sound effects — track previous values to detect transitions
+  const prevGoldenModeRef   = useRef(false);
+  const prevBombActiveRef   = useRef(false);
+  const prevScoreIdForSound = useRef<number | null>(null);
+  const prevNextFreezeRef   = useRef<number>(0);
+  useEffect(() => {
+    if (!surviveState) return;
+
+    // Clean word completed (new popup appeared)
+    const currentScoreId = surviveState.lastWordScore?.id ?? null;
+    if (currentScoreId !== null && currentScoreId !== prevScoreIdForSound.current) {
+      playSurviveCleanWord?.();
+    }
+
+    // Golden mode just activated
+    if (surviveState.goldenMode && !prevGoldenModeRef.current) {
+      playSurviveGolden?.();
+    }
+
+    // Bomb deactivated — distinguish explosion (no new score) from defuse (new score appeared)
+    if (!surviveState.bombActive && prevBombActiveRef.current) {
+      if (currentScoreId !== prevScoreIdForSound.current) {
+        playSurviveBombDefuse?.();
+      } else {
+        playSurviveBombExplode?.();
+      }
+    }
+
+    // Freeze word just completed (nextFreezeWord advanced)
+    if (surviveState.nextFreezeWord !== prevNextFreezeRef.current && prevNextFreezeRef.current !== 0) {
+      playSurviveFreeze?.();
+    }
+
+    prevGoldenModeRef.current   = surviveState.goldenMode;
+    prevBombActiveRef.current   = surviveState.bombActive;
+    prevScoreIdForSound.current = currentScoreId;
+    prevNextFreezeRef.current   = surviveState.nextFreezeWord;
+  }, [surviveState, playSurviveCleanWord, playSurviveGolden, playSurviveBombExplode, playSurviveBombDefuse, playSurviveFreeze]);
+
+  const [showGuide, setShowGuide] = useState(false);
+
   const elapsed = duration === 'infinite'
     ? timeLeft * 1000
     : ((duration as number) - timeLeft) * 1000;
   const liveWpm = elapsed > 0 ? calcWpm(correctChars, elapsed) : 0;
   const liveAccuracy = calcAccuracy(correctChars, totalChars);
 
-  const wordFlags: WordFlags | null = (gameMode === 'survive' && surviveState) ? {
-    golden: slot(surviveState.nextGoldenWord, wordsCompleted),
-    bomb: surviveState.bombActive ? 0 : slot(surviveState.nextBombWord, wordsCompleted),
-    freeze: slot(surviveState.nextFreezeWord, wordsCompleted),
-    bombCountdown: surviveState.bombCountdown,
-  } : null;
+  // Word flags for special word highlighting.
+  // If the active word (slot 0) already had an error, it loses its special highlight.
+  const wordFlags: WordFlags | null = (gameMode === 'survive' && surviveState) ? (() => {
+    const failed = surviveState.currentWordHadError;
+    const goldenSlot = slot(surviveState.nextGoldenWord, wordsCompleted);
+    const freezeSlot = slot(surviveState.nextFreezeWord, wordsCompleted);
+    return {
+      golden: goldenSlot === 0 && failed ? null : goldenSlot,
+      bomb:   surviveState.bombActive ? 0 : slot(surviveState.nextBombWord, wordsCompleted),
+      freeze: freezeSlot === 0 && failed ? null : freezeSlot,
+      bombCountdown: surviveState.bombCountdown,
+    };
+  })() : null;
 
   const surviveBest = gameMode === 'survive' ? loadSurviveBest() : 0;
 
@@ -188,10 +258,32 @@ export function TypingArea({
         <p className="text-center text-gray-400 dark:text-gray-600 text-sm mb-4">click here or start typing</p>
       )}
 
-      {gameMode === 'survive' && testState === 'idle' && surviveBest > 0 && (
-        <p className="text-center text-xs font-mono text-gray-500 mb-3">
-          best: <span className="text-yellow-400">{surviveBest}</span> pts
-        </p>
+      {gameMode === 'survive' && testState === 'idle' && (
+        <div className="text-center mb-4">
+          {surviveBest > 0 && (
+            <p className="text-xs font-mono text-gray-500 mb-2">
+              best: <span className="text-yellow-400">{surviveBest}</span> pts
+            </p>
+          )}
+          <button
+            onClick={() => setShowGuide(g => !g)}
+            className="text-xs font-mono text-gray-600 hover:text-gray-400 transition-colors"
+          >
+            {showGuide ? 'hide guide' : 'how it works'}
+          </button>
+          {showGuide && (
+            <div className="mt-3 max-w-xs mx-auto bg-gray-900 rounded-lg p-3 text-left text-xs font-mono space-y-1.5 text-gray-400">
+              <p><span className="text-yellow-400">timer</span> starts at 15s — don't let it hit 0</p>
+              <p><span className="text-green-400">3 clean words</span> → +2s · each extra → +1s</p>
+              <p><span className="text-red-400">any typo</span> → −0.5s · resets streak &amp; multiplier</p>
+              <p><span className="text-yellow-300">✦ golden word</span> → correct = 2× score for 5s</p>
+              <p><span className="text-red-400 font-bold">bomb word</span> → typo = −2s explosion</p>
+              <p><span className="text-sky-300">freeze word</span> → correct = +2s bonus</p>
+              <p><span className="text-yellow-400">5 clean words</span> → multiplier up (max 2×)</p>
+              <p className="text-gray-600 pt-1">special words lose their highlight if you typo them</p>
+            </div>
+          )}
+        </div>
       )}
 
       {gameMode === 'survive' && testState !== 'idle' && surviveState && (
@@ -201,7 +293,6 @@ export function TypingArea({
           multiplier={surviveState.multiplier}
           goldenMode={surviveState.goldenMode}
           goldenTimeLeft={surviveState.goldenTimeLeft}
-          lastWordScore={surviveState.lastWordScore}
         />
       )}
 
@@ -257,7 +348,20 @@ export function TypingArea({
         </div>
       )}
 
-      <div className="select-none">
+      {/* Word display + centered score popups */}
+      <div className="select-none relative">
+        {gameMode === 'survive' && scorePopups.length > 0 && (
+          <div className="absolute -top-8 inset-x-0 flex justify-center pointer-events-none overflow-visible">
+            {scorePopups.map(p => (
+              <span
+                key={p.id}
+                className={`absolute font-mono text-sm font-bold animate-float-up ${p.golden ? 'text-yellow-400' : 'text-gray-300'}`}
+              >
+                +{p.value}{p.golden ? ' ✦' : ''}
+              </span>
+            ))}
+          </div>
+        )}
         <WordDisplay
           words={line.words}
           charStates={line.charStates}

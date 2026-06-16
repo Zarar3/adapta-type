@@ -5,6 +5,20 @@ import type { NgramStats, StoredTiming } from '../lib/ngramTracker';
 import { calcWpm, calcRawWpm, calcAccuracy } from '../lib/statsCalculator';
 import type { CharState, TestState, TimedMode, WpmDataPoint, TestResults, DifficultyChange, GameMode, Quote } from '../types';
 
+function shuffleInitialSurviveOffsets(): { golden: number; freeze: number; bomb: number } {
+  // Staggered base slots — shuffled so any type can appear first
+  const bases = [2, 4, 7];
+  for (let i = bases.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [bases[i], bases[j]] = [bases[j], bases[i]];
+  }
+  return {
+    golden: bases[0] + Math.floor(Math.random() * 2),
+    freeze: bases[1] + Math.floor(Math.random() * 2),
+    bomb:   bases[2] + Math.floor(Math.random() * 2),
+  };
+}
+
 function streakThreshold(duration: TimedMode): number {
   if (duration === 'infinite') return 5;
   if (duration <= 15) return 3;
@@ -152,6 +166,7 @@ function buildInitialState(
   const initialDisplay = allNgramKeys.slice(0, 5);
   const initialQueue = allNgramKeys.slice(5);
   const displayNgramsForLine = Object.fromEntries(initialDisplay.map(ng => [ng, mergedNgrams[ng]]));
+  const surviveOffsets = gameMode === 'survive' ? shuffleInitialSurviveOffsets() : null;
   return {
     testState: 'idle',
     duration,
@@ -198,11 +213,11 @@ function buildInitialState(
     surviveGoldenTimeLeft: 0,
     surviveGoldenCount: 0,
     surviveMaxCombo: 0,
-    surviveNextGoldenWord: gameMode === 'survive' ? 9 + Math.floor(Math.random() * 4) : 0,
+    surviveNextGoldenWord: surviveOffsets?.golden ?? 0,
     surviveBombActive: false,
     surviveBombCountdown: 0,
-    surviveNextBombWord: gameMode === 'survive' ? 19 + Math.floor(Math.random() * 4) : 0,
-    surviveNextFreezeWord: gameMode === 'survive' ? 14 + Math.floor(Math.random() * 3) : 0,
+    surviveNextBombWord: surviveOffsets?.bomb ?? 0,
+    surviveNextFreezeWord: surviveOffsets?.freeze ?? 0,
     survivePenaltyAppliedThisWord: false,
     surviveLastWordScore: null,
   };
@@ -339,7 +354,7 @@ export function useTypingEngine(requireCorrectWord = false) {
               updates.surviveBombActive = false;
               updates.surviveBombCountdown = 0;
               updates.timeLeft = Math.max(0, newTimeLeft - 2);
-              updates.surviveNextBombWord = prev.wordsCompleted + 18 + Math.floor(Math.random() * 4);
+              updates.surviveNextBombWord = prev.wordsCompleted + 7 + Math.floor(Math.random() * 4);
             } else {
               updates.surviveBombCountdown = bt;
             }
@@ -579,14 +594,15 @@ export function useTypingEngine(requireCorrectWord = false) {
           const inGoldenMode   = next.surviveGoldenMode && !hadError;
           const goldenWordBonus = isGoldenWord && !hadError;
           const scoreMult = (inGoldenMode || goldenWordBonus ? 2 : 1) * next.surviveComboMultiplier;
-          const wordScore = Math.round(base * scoreMult);
+          const wordScore = hadError ? 0 : Math.round(base * scoreMult);
 
           const newCombo = hadError ? 0 : next.survivePerfectCombo + 1;
           const newMult  = hadError ? 1 : Math.min(2, 1 + Math.floor(newCombo / 5) * 0.5);
           const newMaxCombo = Math.max(next.surviveMaxCombo, newCombo);
 
           let timeAdjust = 0;
-          if (!hadError && newCombo > 0 && newCombo % 3 === 0) timeAdjust += 2;
+          if (!hadError && newCombo === 3) timeAdjust += 2;      // unlock streak: +2s
+          else if (!hadError && newCombo > 3) timeAdjust += 1;   // each further perfect word: +1s
           if (isFreezeWord && !hadError) timeAdjust += 2;
           const newTimeLeft = Math.min(90, next.timeLeft + timeAdjust);
 
@@ -601,13 +617,13 @@ export function useTypingEngine(requireCorrectWord = false) {
 
           const newWc = wc + 1; // wordsCompleted after this press
           const nextGolden = isGoldenWord
-            ? newWc + 9 + Math.floor(Math.random() * 4)
+            ? newWc + 5 + Math.floor(Math.random() * 4)
             : next.surviveNextGoldenWord;
           const nextFreeze = isFreezeWord
-            ? newWc + 13 + Math.floor(Math.random() * 4)
+            ? newWc + 5 + Math.floor(Math.random() * 4)
             : next.surviveNextFreezeWord;
           const nextBomb = isBombWord
-            ? newWc + 18 + Math.floor(Math.random() * 4)
+            ? newWc + 7 + Math.floor(Math.random() * 4)
             : next.surviveNextBombWord;
 
           // Activate bomb countdown if the word sliding into slot 0 is the bomb word
@@ -628,11 +644,11 @@ export function useTypingEngine(requireCorrectWord = false) {
             surviveNextFreezeWord: nextFreeze,
             survivePenaltyAppliedThisWord: false,
             timeLeft: newTimeLeft,
-            surviveLastWordScore: {
+            surviveLastWordScore: wordScore > 0 ? {
               value: wordScore,
               golden: inGoldenMode || goldenWordBonus,
               id: (next.surviveLastWordScore?.id ?? 0) + 1,
-            },
+            } : next.surviveLastWordScore,
           };
         }
         // ─────────────────────────────────────────────────────────────
@@ -744,7 +760,7 @@ export function useTypingEngine(requireCorrectWord = false) {
         const timePenalty = bombExplosion ? 2 : (!next.survivePenaltyAppliedThisWord ? 0.5 : 0);
         const newTimeLeft = Math.max(0, next.timeLeft - timePenalty);
         const nextBombWord = bombExplosion
-          ? next.wordsCompleted + 18 + Math.floor(Math.random() * 4)
+          ? next.wordsCompleted + 7 + Math.floor(Math.random() * 4)
           : next.surviveNextBombWord;
         return {
           ...next,

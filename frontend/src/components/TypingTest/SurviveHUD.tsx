@@ -1,33 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
-
-interface ScorePopup {
-  id: number;
-  value: number;
-  golden: boolean;
-}
-
 interface Props {
   score: number;
   combo: number;
   multiplier: number;
   goldenMode: boolean;
   goldenTimeLeft: number;
-  lastWordScore: { value: number; golden: boolean; id: number } | null;
 }
 
-export function SurviveHUD({ score, combo, multiplier, goldenMode, goldenTimeLeft, lastWordScore }: Props) {
-  const [popups, setPopups] = useState<ScorePopup[]>([]);
-  const lastScoreId = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (!lastWordScore || lastWordScore.id === lastScoreId.current) return;
-    lastScoreId.current = lastWordScore.id;
-    const popup: ScorePopup = { id: lastWordScore.id, value: lastWordScore.value, golden: lastWordScore.golden };
-    setPopups(p => [...p, popup]);
-    const t = setTimeout(() => setPopups(p => p.filter(x => x.id !== popup.id)), 900);
-    return () => clearTimeout(t);
-  }, [lastWordScore]);
-
+export function SurviveHUD({ score, combo, multiplier, goldenMode, goldenTimeLeft }: Props) {
   return (
     <div className="relative flex items-center justify-between mb-3 px-1">
       {/* Score */}
@@ -67,20 +46,6 @@ export function SurviveHUD({ score, combo, multiplier, goldenMode, goldenTimeLef
           />
         </div>
       )}
-
-      {/* Floating score popups */}
-      <div className="absolute inset-0 pointer-events-none overflow-visible">
-        {popups.map(p => (
-          <span
-            key={p.id}
-            className={`absolute right-0 bottom-6 font-mono text-sm font-bold animate-float-up ${
-              p.golden ? 'text-yellow-400' : 'text-gray-300'
-            }`}
-          >
-            +{p.value}{p.golden ? ' ✦' : ''}
-          </span>
-        ))}
-      </div>
     </div>
   );
 }
