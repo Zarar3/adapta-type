@@ -131,6 +131,20 @@ export function generateWord(
   return pick[Math.floor(Math.random() * pick.length)];
 }
 
+export function generateWordContaining(
+  pattern: string,
+  difficulty: number,
+  exclude: string[] = [],
+): string {
+  const tier = DIFFICULTY_TIERS[Math.min(Math.max(difficulty, 1), 4) - 1];
+  const base = tier.filter(w => w.includes(pattern));
+  const src = base.length > 0 ? base : WORD_LIST.filter(w => w.includes(pattern));
+  const pool = src.filter(w => !exclude.includes(w));
+  const pick = pool.length > 0 ? pool : src;
+  if (pick.length === 0) return generateWord({ [pattern]: 1 }, difficulty, exclude, 1.0);
+  return pick[Math.floor(Math.random() * pick.length)];
+}
+
 export function generateLine(
   ngrams: Record<string, number>,
   count = 12,

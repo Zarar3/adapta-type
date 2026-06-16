@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { generateLine, generateWord, hasSufficientCoverage } from '../lib/wordSelector';
+import { generateLine, generateWord, generateWordContaining, hasSufficientCoverage } from '../lib/wordSelector';
 import { updateNgramStats, promoteNgrams, saveTimingToStorage, loadStoredTiming, getSlowPatterns, getFlaggedSlowKeys, incrementSessionCount, updateStrugglingPatterns, markPatternPracticed, saveActiveNgrams, loadActiveNgrams, clearActiveNgrams } from '../lib/ngramTracker';
 import type { NgramStats, StoredTiming } from '../lib/ngramTracker';
 import { calcWpm, calcRawWpm, calcAccuracy } from '../lib/statsCalculator';
@@ -36,6 +36,7 @@ interface EngineState {
   ngramStreaks: Record<string, number>;   // consecutive correct encounters per n-gram
   ngramGraduated: Record<string, number>; // patterns cleared during this test
   ngramAges: Record<string, number>;      // words typed since each ngram was promoted
+  ngramCoverageIdx: number;               // round-robin index into ngramDisplayOrder
   ngramStats: NgramStats;                 // per-keystroke bigram/trigram accuracy tally
   ngramDisplayOrder: string[];            // up to 5 error-detected patterns currently shown in chips
   ngramWaitQueue: string[];               // promoted but waiting for a display slot
@@ -151,6 +152,7 @@ function buildInitialState(
     ngramStreaks: {},
     ngramGraduated: {},
     ngramAges: {},
+    ngramCoverageIdx: 0,
     ngramStats: {},
     ngramDisplayOrder: [],
     ngramWaitQueue: [],
@@ -450,11 +452,6 @@ export function useTypingEngine() {
           delete updatedStreaks[ng];
         }
 
-        // Always slide: completed word drops off, queued word moves to position 0, new word fills position 1
-        const lineNgrams = next.focusedPattern
-          ? { [next.focusedPattern]: 5 }
-          : updatedNgrams;
-        const wordBias = next.focusedPattern ? 1.0 : 0.9;
         const updatedRecent = [...next.recentWords, word].slice(-3);
 
         const shared = {
@@ -498,12 +495,45 @@ export function useTypingEngine() {
           };
         }
 
-        const excludeList = [...new Set([...updatedRecent, line.words[1], line.words[2]])];
-        const nextWord = generateWord(lineNgrams, newDifficulty, excludeList, wordBias);
-        const newWords = [line.words[1], line.words[2], nextWord];
+        // Regenerate stale queued words when patterns were newly promoted this word
+        let w1 = line.words[1];
+        let w2 = line.words[2];
+        if (newlyPromoted.length > 0 && displayOrder.length > 0) {
+          const hasActivePattern = (w: string) => displayOrder.some(ng => w.includes(ng));
+          let ci = next.ngramCoverageIdx;
+          if (!hasActivePattern(w1)) {
+            const excl = [...new Set([...updatedRecent, line.words[0]])];
+            w1 = generateWordContaining(displayOrder[ci % displayOrder.length], newDifficulty, excl);
+            if (displayOrder.length > 1) ci = (ci + 1) % displayOrder.length;
+          }
+          if (!hasActivePattern(w2)) {
+            const excl = [...new Set([...updatedRecent, line.words[0], w1])];
+            w2 = generateWordContaining(displayOrder[ci % displayOrder.length], newDifficulty, excl);
+          }
+        }
+
+        // Generate next word with round-robin pattern targeting
+        const excludeList = [...new Set([...updatedRecent, w1, w2])];
+        let nextCoverageIdx = next.ngramCoverageIdx;
+        let nextWord: string;
+        if (next.focusedPattern) {
+          nextWord = generateWordContaining(next.focusedPattern, newDifficulty, excludeList);
+        } else if (displayOrder.length > 0) {
+          nextWord = generateWordContaining(
+            displayOrder[nextCoverageIdx % displayOrder.length],
+            newDifficulty,
+            excludeList,
+          );
+          nextCoverageIdx = (nextCoverageIdx + 1) % displayOrder.length;
+        } else {
+          nextWord = generateWord(updatedNgrams, newDifficulty, excludeList, 0.9);
+        }
+
+        const newWords = [w1, w2, nextWord];
         return {
           ...next,
           ...shared,
+          ngramCoverageIdx: nextCoverageIdx,
           showLineHint: false,
           line: {
             words: newWords,
