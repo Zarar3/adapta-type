@@ -88,6 +88,10 @@ export function TypingArea({
 }: Props) {
   const focusPatterns = focusedPattern ? [] : ngramDisplayOrder;
 
+  // Survive UI must never appear inside a bot race, even if the mode selector
+  // was left on "survive" when the race started (the race runs a word-count session).
+  const surviveUi = gameMode === 'survive' && !isRaceMode;
+
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleKeyWithSound = useCallback((e: KeyboardEvent) => {
@@ -183,14 +187,14 @@ export function TypingArea({
   const elapsed = duration === 'infinite'
     ? timeLeft * 1000
     : ((duration as number) - timeLeft) * 1000;
-  const liveWpm = gameMode === 'survive'
+  const liveWpm = surviveUi
     ? (surviveState?.liveWpm ?? 0)
     : elapsed > 0 ? calcWpm(correctChars, elapsed) : 0;
   const liveAccuracy = calcAccuracy(correctChars, totalChars);
 
   // Word flags for special word highlighting.
   // If the active word (slot 0) already had an error, it loses its special highlight.
-  const wordFlags: WordFlags | null = (gameMode === 'survive' && surviveState) ? (() => {
+  const wordFlags: WordFlags | null = (surviveUi && surviveState) ? (() => {
     const failed = surviveState.currentWordHadError;
     const goldenSlot = slot(surviveState.nextGoldenWord, wordsCompleted);
     const freezeSlot = slot(surviveState.nextFreezeWord, wordsCompleted);
@@ -202,7 +206,7 @@ export function TypingArea({
     };
   })() : null;
 
-  const surviveBest = gameMode === 'survive' ? loadSurviveBest() : 0;
+  const surviveBest = surviveUi ? loadSurviveBest() : 0;
 
   return (
     <div
@@ -242,6 +246,7 @@ export function TypingArea({
             placeholder="paste your text here, then press start..."
             value={customText}
             onChange={e => onChangeCustomText(e.target.value)}
+            onClick={e => e.stopPropagation()}
           />
           <div className="flex justify-center mt-2">
             <button
@@ -266,7 +271,7 @@ export function TypingArea({
         <p className="text-center text-gray-400 dark:text-gray-600 text-sm mb-4">click here or start typing</p>
       )}
 
-      {gameMode === 'survive' && testState === 'idle' && (
+      {surviveUi && testState === 'idle' && (
         <div className="text-center mb-4">
           {surviveBest > 0 && (
             <p className="text-xs font-mono text-gray-500 mb-2">
@@ -299,7 +304,7 @@ export function TypingArea({
         </div>
       )}
 
-      {gameMode === 'survive' && testState !== 'idle' && surviveState && (
+      {surviveUi && testState !== 'idle' && surviveState && (
         <SurviveHUD
           score={surviveState.score}
           combo={surviveState.combo}
@@ -367,7 +372,7 @@ export function TypingArea({
 
       {/* Word display + centered score popups */}
       <div className="select-none relative">
-        {gameMode === 'survive' && scorePopups.length > 0 && (
+        {surviveUi && scorePopups.length > 0 && (
           <div className="absolute -top-8 inset-x-0 flex justify-center pointer-events-none overflow-visible">
             {scorePopups.map(p => (
               <span
@@ -385,13 +390,13 @@ export function TypingArea({
           isActive
           activeWord={currentWord}
           activeChar={currentChar}
-          showHint={showLineHint}
+          showHint={showLineHint && gameMode !== 'custom'}
           wordFlags={wordFlags}
         />
         {spaceBlocked && (
           <p className="text-center text-xs font-mono text-red-400/70 mt-2">fix the highlighted word first</p>
         )}
-        {surviveState?.bombActive && (
+        {surviveUi && surviveState?.bombActive && (
           <p className="text-center text-xs font-mono text-red-400 mt-2 animate-pulse">type this word perfectly — any mistake detonates it</p>
         )}
       </div>
