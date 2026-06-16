@@ -39,11 +39,26 @@ function CustomTooltip({ active, label, payload }: CustomTooltipProps) {
   );
 }
 
+function smoothPoints(data: WpmDataPoint[]): WpmDataPoint[] {
+  if (data.length <= 2) return data;
+  return data.map((point, i) => {
+    const from = Math.max(0, i - 1);
+    const to = Math.min(data.length - 1, i + 1);
+    const slice = data.slice(from, to + 1);
+    return {
+      ...point,
+      wpm: Math.round(slice.reduce((s, p) => s + p.wpm, 0) / slice.length),
+      raw: Math.round(slice.reduce((s, p) => s + p.raw, 0) / slice.length),
+    };
+  });
+}
+
 export function WpmGraph({ data, duration, difficultyHistory }: Props) {
   void duration;
+  const smoothed = smoothPoints(data);
   return (
     <ResponsiveContainer width="100%" height={220}>
-      <ComposedChart data={data} margin={{ top: 20, right: 20, left: 0, bottom: 5 }}>
+      <ComposedChart data={smoothed} margin={{ top: 20, right: 20, left: 0, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
         <XAxis
           dataKey="t"
