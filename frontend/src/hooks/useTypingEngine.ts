@@ -30,6 +30,23 @@ function rescheduleSpecial(newWc: number, baseMin: number, jitter: number, other
   return newWc + baseMin + Math.floor(Math.random() * jitter);
 }
 
+// Survive score multipliers that reward clean, fast typing.
+function accuracyScoreMult(acc: number): number {
+  if (acc >= 95) return 1.5;
+  if (acc >= 90) return 1.25;
+  if (acc >= 85) return 1.1;
+  return 1;
+}
+function wpmScoreMult(wpm: number): number {
+  if (wpm >= 120) return 2.5;
+  if (wpm >= 100) return 2;
+  if (wpm >= 80) return 1.5;
+  if (wpm >= 60) return 1.25;
+  if (wpm >= 50) return 1.15;
+  if (wpm >= 40) return 1.1;
+  return 1;
+}
+
 function streakThreshold(duration: TimedMode): number {
   if (duration === 'infinite') return 5;
   if (duration <= 15) return 3;
@@ -423,7 +440,7 @@ export function useTypingEngine(requireCorrectWord = false) {
 
   // Watch for fixed-text mode completion (quote/custom)
   useEffect(() => {
-    if (state.fixedWords && state.fixedWordOffset + 2 >= state.fixedWords.length && state.testState === 'running' && state.wordsCompleted > 0) {
+    if (state.fixedWords && state.fixedWordOffset >= state.fixedWords.length && state.testState === 'running' && state.wordsCompleted > 0) {
       finishTest(stateRef.current);
     }
   }, [state.fixedWordOffset, state.fixedWords, state.testState, state.wordsCompleted, finishTest]);
@@ -607,7 +624,12 @@ export function useTypingEngine(requireCorrectWord = false) {
           const base = BASE_SCORES[next.difficultyLevel - 1] ?? 50;
           const inGoldenMode   = next.surviveGoldenMode && !hadError;
           const goldenWordBonus = isGoldenWord && !hadError;
-          const scoreMult = (inGoldenMode || goldenWordBonus ? 2 : 1) * next.surviveComboMultiplier;
+          // Reward fast, accurate typing: fold live wpm + session accuracy into the score.
+          const elapsedMs = startTimeRef.current ? Date.now() - startTimeRef.current : 0;
+          const liveWpm = elapsedMs > 1000 ? calcWpm(next.correctChars, elapsedMs) : 0;
+          const liveAcc = calcAccuracy(next.correctChars, next.totalChars);
+          const perfMult = accuracyScoreMult(liveAcc) * wpmScoreMult(liveWpm);
+          const scoreMult = (inGoldenMode || goldenWordBonus ? 2 : 1) * next.surviveComboMultiplier * perfMult;
           const wordScore = hadError ? 0 : Math.round(base * scoreMult);
 
           const newCombo = hadError ? 0 : next.survivePerfectCombo + 1;

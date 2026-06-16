@@ -173,6 +173,7 @@ export default function App() {
     nextFreezeWord: state.surviveNextFreezeWord,
     lastWordScore: state.surviveLastWordScore,
     currentWordHadError: state.currentWordHadError,
+    liveWpm: state.wpmHistory.length > 0 ? state.wpmHistory[state.wpmHistory.length - 1].wpm : 0,
   } : null;
 
   return (

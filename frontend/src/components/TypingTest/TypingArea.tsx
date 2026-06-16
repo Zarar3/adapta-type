@@ -25,6 +25,7 @@ export interface SurviveState {
   nextFreezeWord: number;
   lastWordScore: { value: number; golden: boolean; id: number } | null;
   currentWordHadError: boolean;
+  liveWpm: number;
 }
 
 interface LineData {
@@ -175,10 +176,14 @@ export function TypingArea({
 
   const [showGuide, setShowGuide] = useState(false);
 
+  // In survive mode timeLeft is dynamic (bonuses/penalties move it), so
+  // (duration - timeLeft) is NOT elapsed time. Use the engine's real-elapsed wpm instead.
   const elapsed = duration === 'infinite'
     ? timeLeft * 1000
     : ((duration as number) - timeLeft) * 1000;
-  const liveWpm = elapsed > 0 ? calcWpm(correctChars, elapsed) : 0;
+  const liveWpm = gameMode === 'survive'
+    ? (surviveState?.liveWpm ?? 0)
+    : elapsed > 0 ? calcWpm(correctChars, elapsed) : 0;
   const liveAccuracy = calcAccuracy(correctChars, totalChars);
 
   // Word flags for special word highlighting.
