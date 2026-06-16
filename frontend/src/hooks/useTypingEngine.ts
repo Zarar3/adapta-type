@@ -1,10 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { generateLine, generateWord, generateWordContaining, hasSufficientCoverage } from '../lib/wordSelector';
-import { updateNgramStats, promoteNgrams, saveTimingToStorage, loadStoredTiming, getSlowPatterns, getFlaggedSlowKeys, incrementSessionCount, updateStrugglingPatterns, markPatternPracticed, saveActiveNgrams, loadActiveNgrams, clearActiveNgrams, loadSurviveBest, saveSurviveBest } from '../lib/ngramTracker';
+import { updateNgramStats, promoteNgrams, saveTimingToStorage, loadStoredTiming, getSlowPatterns, getFlaggedSlowKeys, incrementSessionCount, updateStrugglingPatterns, markPatternPracticed, saveActiveNgrams, loadActiveNgrams, clearActiveNgrams, loadSurviveBest, saveSurviveBest, saveFocusCarryover, loadFocusCarryover } from '../lib/ngramTracker';
 import type { NgramStats, StoredTiming } from '../lib/ngramTracker';
 import { calcWpm, calcRawWpm, calcAccuracy } from '../lib/statsCalculator';
 import { accuracyScoreMult, wpmScoreMult, difficultyScoreMult } from '../lib/surviveScoring';
 import type { CharState, TestState, TimedMode, WpmDataPoint, TestResults, DifficultyChange, GameMode, Quote } from '../types';
+
+function shuffleArray<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
 function shuffleInitialSurviveOffsets(): { golden: number; freeze: number; bomb: number } {
   // Staggered base slots — shuffled so any type can appear first
@@ -176,9 +185,19 @@ function buildInitialState(
   const slowNgramKeys = Object.fromEntries(slowPatterns.map(p => [p.ng, true as const]));
   const persistedNgrams = loadActiveNgrams();
   const mergedNgrams = { ...persistedNgrams, ...slowNgrams };
-  const allNgramKeys = Object.keys(mergedNgrams);
-  const initialDisplay = allNgramKeys.slice(0, 5);
-  const initialQueue = allNgramKeys.slice(5);
+
+  // Carry forward patterns left unfinished at the end of the last session, even
+  // if the timing data no longer flags them — they persist until graduated.
+  const carryover = loadFocusCarryover();
+  for (const ng of carryover) if (!(ng in mergedNgrams)) mergedNgrams[ng] = 1;
+
+  // Unfinished carryover leads the visible set; everything else is shuffled so
+  // the focus chips (and the refill queue) are a varying random sample.
+  const carryInPool = carryover.filter(ng => ng in mergedNgrams);
+  const rest = shuffleArray(Object.keys(mergedNgrams).filter(ng => !carryInPool.includes(ng)));
+  const ordered = [...carryInPool, ...rest];
+  const initialDisplay = ordered.slice(0, 5);
+  const initialQueue = ordered.slice(5);
   const displayNgramsForLine = Object.fromEntries(initialDisplay.map(ng => [ng, mergedNgrams[ng]]));
   const surviveOffsets = gameMode === 'survive' ? shuffleInitialSurviveOffsets() : null;
   return {
@@ -313,6 +332,9 @@ export function useTypingEngine(requireCorrectWord = false) {
       saveTimingToStorage(s.ngramStats);
       updateStrugglingPatterns(s.ngramStats, s.ngramGraduated);
       saveActiveNgrams(s.ngrams);
+      // The still-visible chips are exactly the not-yet-graduated patterns
+      // (completed ones already left ngramDisplayOrder) — carry them forward.
+      saveFocusCarryover(s.ngramDisplayOrder);
       incrementSessionCount();
       storedTimingRef.current = loadStoredTiming();
     }

@@ -261,6 +261,20 @@ export function clearActiveNgrams(): void {
   try { localStorage.removeItem(ACTIVE_NGRAMS_KEY); } catch { /* silent */ }
 }
 
+// Patterns that were visible (still unfinished) when the last session ended.
+// Persists across plain restarts — NOT cleared by clearActiveNgrams — so the
+// user keeps focusing on what they didn't graduate yet. Local-only, like all
+// other tracking keys.
+const FOCUS_CARRYOVER_KEY = 'adapta-type-focus-carryover';
+
+export function saveFocusCarryover(list: string[]): void {
+  try { localStorage.setItem(FOCUS_CARRYOVER_KEY, JSON.stringify(list)); } catch { /* silent */ }
+}
+
+export function loadFocusCarryover(): string[] {
+  try { return JSON.parse(localStorage.getItem(FOCUS_CARRYOVER_KEY) ?? '[]'); } catch { return []; }
+}
+
 export function resetAllTracking(): void {
   try {
     localStorage.removeItem('adapta-type-timing');
@@ -268,6 +282,7 @@ export function resetAllTracking(): void {
     localStorage.removeItem(FLAGGED_KEY);
     localStorage.removeItem(STRUGGLING_KEY);
     localStorage.removeItem(ACTIVE_NGRAMS_KEY);
+    localStorage.removeItem(FOCUS_CARRYOVER_KEY);
   } catch { /* silent */ }
 }
 
