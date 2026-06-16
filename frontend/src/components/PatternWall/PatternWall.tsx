@@ -1,15 +1,14 @@
 import { useState } from 'react';
 import type { PatternRecord } from '../../hooks/usePatternLibrary';
 import { loadStrugglingPatterns } from '../../lib/ngramTracker';
-import type { TimedMode } from '../../types';
+import type { GameMode } from '../../types';
+import { PracticePicker } from '../PracticePicker';
 
 interface Props {
   library: Record<string, PatternRecord>;
-  onPractice: (pattern: string, duration: TimedMode) => void;
+  onPractice: (pattern: string, mode: GameMode, length?: number) => void;
   onReset: () => void;
 }
-
-const MODES: TimedMode[] = [15, 30, 60, 120];
 
 interface CardProps {
   record: PatternRecord;
@@ -17,7 +16,7 @@ interface CardProps {
   isStruggling: boolean;
   onOpen: () => void;
   onClose: () => void;
-  onPractice: (pattern: string, duration: TimedMode) => void;
+  onPractice: (pattern: string, mode: GameMode, length?: number) => void;
 }
 
 function PatternCard({ record, isOpen, isStruggling, onOpen, onClose, onPractice }: CardProps) {
@@ -61,24 +60,13 @@ function PatternCard({ record, isOpen, isStruggling, onOpen, onClose, onPractice
 
         <div className="w-full h-px bg-gray-200 dark:bg-gray-800" />
 
-        <p className="text-xs text-gray-500">choose duration</p>
-        <div className="flex gap-2">
-          {MODES.map(m => (
-            <button
-              key={m}
-              onClick={() => onPractice(pattern, m)}
-              className="px-3 py-1.5 rounded-lg text-sm font-mono bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-yellow-400 hover:text-gray-900 transition-colors"
-            >
-              {m}s
-            </button>
-          ))}
-        </div>
-        <button
-          onClick={onClose}
-          className="text-xs text-gray-400 dark:text-gray-700 hover:text-gray-600 dark:hover:text-gray-500 transition-colors"
-        >
-          cancel
-        </button>
+        <PracticePicker
+          pattern={pattern}
+          size="lg"
+          tone={isStruggling ? 'yellow' : 'gray'}
+          onPick={(mode, length) => onPractice(pattern, mode, length)}
+          onCancel={onClose}
+        />
       </div>
     );
   }

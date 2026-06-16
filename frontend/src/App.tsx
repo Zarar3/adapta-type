@@ -9,7 +9,7 @@ import { usePatternLibrary } from './hooks/usePatternLibrary';
 import { useSound } from './hooks/useSound';
 import { QUOTES } from './data/quotes';
 import { resetAllTracking } from './lib/ngramTracker';
-import type { TimedMode, GameMode, WordCountTarget } from './types';
+import type { GameMode, WordCountTarget } from './types';
 import type { SurviveState } from './components/TypingTest/TypingArea';
 
 export default function App() {
@@ -95,7 +95,7 @@ export default function App() {
     if (challenge && challenge.length >= 2 && challenge.length <= 3) {
       import('./lib/wordSelector').then(({ hasSufficientCoverage }) => {
         if (hasSufficientCoverage(challenge)) {
-          startFocusedSession(challenge, 30);
+          startFocusedSession(challenge, 'timed', 30);
           window.history.replaceState({}, '', window.location.pathname);
         }
       });
@@ -149,8 +149,10 @@ export default function App() {
     prevTestStateRef.current = state.testState;
   }, [state.testState, state.results, state.focusedPattern, gameMode, addFromSession, markCompleted, recordFocusedSession]);
 
-  const handlePracticePattern = useCallback((pattern: string, duration: TimedMode) => {
-    startFocusedSession(pattern, duration);
+  const handlePracticePattern = useCallback((pattern: string, mode: GameMode = 'timed', length?: number) => {
+    setGameMode(mode); // align App's mode so no inherited-mode UI bleeds through
+    if (mode === 'words' && length) setWordTarget(length as WordCountTarget);
+    startFocusedSession(pattern, mode, length);
     setView('typing');
   }, [startFocusedSession]);
 

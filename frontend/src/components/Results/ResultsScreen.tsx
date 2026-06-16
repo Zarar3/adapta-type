@@ -4,15 +4,14 @@ import { WpmGraph } from './WpmGraph';
 import { BigramHeatmap } from './BigramHeatmap';
 import { getSlowPatterns, getSessionCount, loadStrugglingPatterns, loadSurviveBest } from '../../lib/ngramTracker';
 import { shareCard, downloadShareCard } from '../../lib/export';
-import type { TestResults, TimedMode } from '../../types';
-
-const MODES: TimedMode[] = [15, 30, 60, 120];
+import { PracticePicker } from '../PracticePicker';
+import type { TestResults, GameMode } from '../../types';
 
 interface Props {
   results: TestResults;
   focusedPattern: string | null;
   onRestart: () => void;
-  onPracticePattern: (pattern: string, duration: TimedMode) => void;
+  onPracticePattern: (pattern: string, mode: GameMode, length?: number) => void;
 }
 
 export function ResultsScreen({ results, focusedPattern, onRestart, onPracticePattern }: Props) {
@@ -100,16 +99,13 @@ export function ResultsScreen({ results, focusedPattern, onRestart, onPracticePa
                   {slowThisRun.map(({ ng, improved }) => (
                     <div key={ng}>
                       {pickingPattern === ng ? (
-                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-yellow-400/15 border border-yellow-400/40 flex-wrap">
-                          <span className="font-mono text-yellow-300 text-sm">{ng}</span>
-                          <span className="text-gray-400 dark:text-gray-600 text-xs mx-1">→</span>
-                          {MODES.map(m => (
-                            <button key={m} onClick={() => onPracticePattern(ng, m)}
-                              className="px-2 py-0.5 rounded text-xs font-mono bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-yellow-400 hover:text-gray-900 transition-colors">
-                              {m}s
-                            </button>
-                          ))}
-                          <button onClick={() => setPickingPattern(null)} className="text-xs text-gray-400 dark:text-gray-700 hover:text-gray-500 ml-1">✕</button>
+                        <div className="px-2.5 py-1.5 rounded bg-yellow-400/15 border border-yellow-400/40">
+                          <PracticePicker
+                            pattern={ng}
+                            tone="yellow"
+                            onPick={(mode, length) => { onPracticePattern(ng, mode, length); setPickingPattern(null); }}
+                            onCancel={() => setPickingPattern(null)}
+                          />
                         </div>
                       ) : (
                         <button
@@ -136,16 +132,13 @@ export function ResultsScreen({ results, focusedPattern, onRestart, onPracticePa
                   {struggled.map((ng) => (
                     <div key={ng}>
                       {pickingPattern === ng ? (
-                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-red-500/20 border border-red-500/50 flex-wrap">
-                          <span className="font-mono text-red-400 text-sm">{ng}</span>
-                          <span className="text-gray-400 dark:text-gray-600 text-xs mx-1">→</span>
-                          {MODES.map(m => (
-                            <button key={m} onClick={() => onPracticePattern(ng, m)}
-                              className="px-2 py-0.5 rounded text-xs font-mono bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-yellow-400 hover:text-gray-900 transition-colors">
-                              {m}s
-                            </button>
-                          ))}
-                          <button onClick={() => setPickingPattern(null)} className="text-xs text-gray-400 dark:text-gray-700 hover:text-gray-500 ml-1">✕</button>
+                        <div className="px-2.5 py-1.5 rounded bg-red-500/20 border border-red-500/50">
+                          <PracticePicker
+                            pattern={ng}
+                            tone="red"
+                            onPick={(mode, length) => { onPracticePattern(ng, mode, length); setPickingPattern(null); }}
+                            onCancel={() => setPickingPattern(null)}
+                          />
                         </div>
                       ) : (
                         <button

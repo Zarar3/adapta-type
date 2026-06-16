@@ -4,7 +4,7 @@ import { updateNgramStats, promoteNgrams, saveTimingToStorage, loadStoredTiming,
 import type { NgramStats, StoredTiming } from '../lib/ngramTracker';
 import { calcWpm, calcRawWpm, calcAccuracy } from '../lib/statsCalculator';
 import { accuracyScoreMult, wpmScoreMult, difficultyScoreMult } from '../lib/surviveScoring';
-import type { CharState, TestState, TimedMode, WpmDataPoint, TestResults, DifficultyChange, GameMode, Quote } from '../types';
+import type { CharState, TestState, TimedMode, WpmDataPoint, TestResults, DifficultyChange, GameMode, Quote, WordCountTarget } from '../types';
 
 function shuffleArray<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -899,15 +899,28 @@ export function useTypingEngine(requireCorrectWord = false) {
     setState(buildInitialState(d));
   }, [stopTicker]);
 
-  const startFocusedSession = useCallback((pattern: string, dur: TimedMode) => {
+  const startFocusedSession = useCallback((pattern: string, mode: GameMode = 'timed', length?: number) => {
     stopTicker();
     secondCountRef.current = 0;
     startTimeRef.current = null;
     markPatternPracticed(pattern);
     const focusNgrams = { [pattern]: 5 };
-    setDuration(dur);
+
+    let base: EngineState;
+    if (mode === 'words') {
+      const target = (length as WordCountTarget) ?? 25;
+      setDuration('infinite');
+      base = buildInitialState('infinite', 'words', { wordTarget: target });
+    } else if (mode === 'survive') {
+      setDuration(15);
+      base = buildInitialState(15, 'survive'); // keeps shuffled survive offsets
+    } else {
+      const dur = (length as TimedMode) ?? 30;
+      setDuration(dur);
+      base = buildInitialState(dur);
+    }
     setState({
-      ...buildInitialState(dur),
+      ...base,
       focusedPattern: pattern,
       ngrams: focusNgrams,
       line: makeLineData(generateLine(focusNgrams, 3)),
