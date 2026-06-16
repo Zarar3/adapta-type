@@ -20,15 +20,15 @@ export function TimerBar({ testState, timeLeft, duration, onChangeDuration }: Pr
 
   if (testState === 'idle') {
     return (
-      <div className="flex justify-center gap-3 mb-6">
+      <div className="flex justify-center gap-2 sm:gap-3 mb-6 flex-wrap">
         {MODES.map(m => (
           <button
             key={m}
             onClick={() => onChangeDuration(m)}
-            className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+            className={`px-3 sm:px-4 py-1.5 rounded text-sm font-medium transition-colors ${
               m === duration
                 ? 'bg-yellow-400 text-gray-900'
-                : 'text-gray-400 hover:text-gray-200'
+                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
             }`}
           >
             {m === 'infinite' ? '∞' : `${m}s`}

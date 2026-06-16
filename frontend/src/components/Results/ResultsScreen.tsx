@@ -34,17 +34,16 @@ export function ResultsScreen({ results, focusedPattern, onRestart, onPracticePa
         duration={results.duration}
       />
 
-      <div className="flex justify-center gap-8 mb-4 text-sm font-mono text-gray-500">
-        <span>peak <span className="text-gray-200">{results.peakWpm}</span> wpm</span>
-        <span>best streak <span className="text-gray-200">{results.longestPerfectStreak}</span></span>
+      <div className="flex justify-center gap-4 sm:gap-8 mb-4 text-sm font-mono text-gray-500 flex-wrap">
+        <span>peak <span className="text-gray-700 dark:text-gray-200">{results.peakWpm}</span> wpm</span>
+        <span>best streak <span className="text-gray-700 dark:text-gray-200">{results.longestPerfectStreak}</span></span>
         <span>cleared <span className="text-green-400">{Object.keys(results.ngramGraduated).length}</span></span>
       </div>
 
-      <div className="bg-gray-900 rounded-lg p-6 mb-8">
+      <div className="bg-gray-900 rounded-lg p-4 sm:p-6 mb-8">
         <WpmGraph data={results.wpmHistory} duration={results.duration} difficultyHistory={results.difficultyHistory} />
       </div>
 
-      {/* Pattern wall */}
       {(() => {
         const preRunSet = new Set(results.preRunSlowKeys);
         const slowThisRun = getSlowPatterns().filter(p => !preRunSet.has(p.ng));
@@ -53,36 +52,35 @@ export function ResultsScreen({ results, focusedPattern, onRestart, onPracticePa
         const struggled = Object.keys(strugglingMap).filter(ng => focusedSet.has(ng));
         const cleared = Object.keys(results.ngramGraduated);
         const hasAnything = slowThisRun.length > 0 || struggled.length > 0 || cleared.length > 0;
-
         const remaining = Math.max(0, MIN_SESSIONS - sessionCount);
 
         return (
-          <div className="bg-gray-900 rounded-lg p-6 mb-8">
-            <h3 className="text-gray-400 text-sm font-medium mb-4">pattern breakdown</h3>
+          <div className="bg-gray-100 dark:bg-gray-900 rounded-lg p-4 sm:p-6 mb-8">
+            <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-4">pattern breakdown</h3>
 
             {!hasAnything && remaining > 0 && (
-              <p className="text-xs text-gray-600">
+              <p className="text-xs text-gray-400 dark:text-gray-600">
                 complete {remaining} more test{remaining === 1 ? '' : 's'} to start building your timing profile
               </p>
             )}
 
             {slowThisRun.length > 0 && (
               <div className="mb-4">
-                <p className="text-xs text-gray-600 mb-2">slow this run <span className="text-gray-700">— click to practice</span></p>
+                <p className="text-xs text-gray-400 dark:text-gray-600 mb-2">slow this run <span className="text-gray-300 dark:text-gray-700">— click to practice</span></p>
                 <div className="flex flex-wrap gap-2">
                   {slowThisRun.map(({ ng, improved }) => (
                     <div key={ng}>
                       {pickingPattern === ng ? (
-                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-yellow-400/15 border border-yellow-400/40">
+                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-yellow-400/15 border border-yellow-400/40 flex-wrap">
                           <span className="font-mono text-yellow-300 text-sm">{ng}</span>
-                          <span className="text-gray-600 text-xs mx-1">→</span>
+                          <span className="text-gray-400 dark:text-gray-600 text-xs mx-1">→</span>
                           {MODES.map(m => (
                             <button key={m} onClick={() => onPracticePattern(ng, m)}
-                              className="px-2 py-0.5 rounded text-xs font-mono bg-gray-800 text-gray-300 hover:bg-yellow-400 hover:text-gray-900 transition-colors">
+                              className="px-2 py-0.5 rounded text-xs font-mono bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-yellow-400 hover:text-gray-900 transition-colors">
                               {m}s
                             </button>
                           ))}
-                          <button onClick={() => setPickingPattern(null)} className="text-xs text-gray-700 hover:text-gray-500 ml-1">✕</button>
+                          <button onClick={() => setPickingPattern(null)} className="text-xs text-gray-400 dark:text-gray-700 hover:text-gray-500 ml-1">✕</button>
                         </div>
                       ) : (
                         <button
@@ -104,21 +102,21 @@ export function ResultsScreen({ results, focusedPattern, onRestart, onPracticePa
 
             {struggled.length > 0 && (
               <div className="mb-4">
-                <p className="text-xs text-gray-600 mb-2">still struggling <span className="text-gray-700">— click to practice</span></p>
+                <p className="text-xs text-gray-400 dark:text-gray-600 mb-2">still struggling <span className="text-gray-300 dark:text-gray-700">— click to practice</span></p>
                 <div className="flex flex-wrap gap-2">
                   {struggled.map((ng) => (
                     <div key={ng}>
                       {pickingPattern === ng ? (
-                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-red-500/20 border border-red-500/50">
+                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-red-500/20 border border-red-500/50 flex-wrap">
                           <span className="font-mono text-red-400 text-sm">{ng}</span>
-                          <span className="text-gray-600 text-xs mx-1">→</span>
+                          <span className="text-gray-400 dark:text-gray-600 text-xs mx-1">→</span>
                           {MODES.map(m => (
                             <button key={m} onClick={() => onPracticePattern(ng, m)}
-                              className="px-2 py-0.5 rounded text-xs font-mono bg-gray-800 text-gray-300 hover:bg-yellow-400 hover:text-gray-900 transition-colors">
+                              className="px-2 py-0.5 rounded text-xs font-mono bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-yellow-400 hover:text-gray-900 transition-colors">
                               {m}s
                             </button>
                           ))}
-                          <button onClick={() => setPickingPattern(null)} className="text-xs text-gray-700 hover:text-gray-500 ml-1">✕</button>
+                          <button onClick={() => setPickingPattern(null)} className="text-xs text-gray-400 dark:text-gray-700 hover:text-gray-500 ml-1">✕</button>
                         </div>
                       ) : (
                         <button
@@ -136,7 +134,7 @@ export function ResultsScreen({ results, focusedPattern, onRestart, onPracticePa
 
             {cleared.length > 0 && (
               <div>
-                <p className="text-xs text-gray-600 mb-2">cleared</p>
+                <p className="text-xs text-gray-400 dark:text-gray-600 mb-2">cleared</p>
                 <div className="flex flex-wrap gap-2">
                   {cleared.map(ng => (
                     <div key={ng} className="px-3 py-1.5 rounded font-mono text-sm bg-green-400/10 border border-green-400/20 text-green-300">
@@ -153,7 +151,7 @@ export function ResultsScreen({ results, focusedPattern, onRestart, onPracticePa
       <div className="flex justify-center">
         <button
           onClick={onRestart}
-          className="flex items-center gap-2 px-6 py-2.5 rounded bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors font-medium"
+          className="flex items-center gap-2 px-6 py-2.5 rounded bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-300 hover:text-gray-900 dark:hover:bg-gray-700 dark:hover:text-white transition-colors font-medium"
           title="Tab + Enter to restart"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

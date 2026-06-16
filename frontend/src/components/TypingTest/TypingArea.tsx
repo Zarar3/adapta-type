@@ -42,7 +42,6 @@ export function TypingArea({
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Sound-aware keydown wrapper
   const handleKeyWithSound = useCallback((e: KeyboardEvent) => {
     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
       const expected = line.words[currentWord]?.[currentChar];
@@ -60,7 +59,6 @@ export function TypingArea({
     return () => el.removeEventListener('keydown', handleKeyWithSound);
   }, [handleKeyWithSound]);
 
-  // Caps lock detection
   const [capsLock, setCapsLock] = useState(false);
   useEffect(() => {
     const handler = (e: KeyboardEvent) => setCapsLock(e.getModifierState('CapsLock'));
@@ -69,7 +67,6 @@ export function TypingArea({
     return () => { window.removeEventListener('keydown', handler); window.removeEventListener('keyup', handler); };
   }, []);
 
-  // Difficulty flash
   const [flashKey, setFlashKey] = useState(0);
   const prevDifficulty = useRef(difficultyLevel);
   useEffect(() => {
@@ -79,7 +76,6 @@ export function TypingArea({
     }
   }, [difficultyLevel]);
 
-  // Live WPM/accuracy
   const elapsed = duration === 'infinite'
     ? timeLeft * 1000
     : ((duration as number) - timeLeft) * 1000;
@@ -91,12 +87,12 @@ export function TypingArea({
       className="w-full max-w-5xl mx-auto cursor-text"
       onClick={() => inputRef.current?.focus()}
     >
-      {/* Hidden input captures keyboard events */}
       <input
         ref={inputRef}
         className="absolute opacity-0 w-0 h-0 pointer-events-none"
         autoFocus
         readOnly
+        inputMode="text"
         aria-hidden
       />
 
@@ -108,14 +104,14 @@ export function TypingArea({
       />
 
       {testState === 'idle' && (
-        <p className="text-center text-gray-600 text-sm mb-4">click here or start typing</p>
+        <p className="text-center text-gray-400 dark:text-gray-600 text-sm mb-4">click here or start typing</p>
       )}
 
       {testState === 'running' && (
         <>
           <div className="flex justify-center gap-6 mb-4 text-sm font-mono">
-            <span className="text-gray-300">{liveWpm} <span className="text-yellow-400/60">wpm</span></span>
-            <span className="text-gray-300">{liveAccuracy}% <span className="text-yellow-400/60">acc</span></span>
+            <span className="text-gray-600 dark:text-gray-300">{liveWpm} <span className="text-yellow-400/60">wpm</span></span>
+            <span className="text-gray-600 dark:text-gray-300">{liveAccuracy}% <span className="text-yellow-400/60">acc</span></span>
           </div>
           <div className="flex justify-end mb-1">
             <span
@@ -138,7 +134,7 @@ export function TypingArea({
 
       {focusPatterns.length > 0 && testState !== 'idle' && (
         <div className="flex items-center gap-3 mb-3 flex-wrap">
-          <span className="text-xs text-gray-500">focusing on:</span>
+          <span className="text-xs text-gray-400 dark:text-gray-500">focusing on:</span>
           {focusPatterns.map(pattern => {
             const streak = ngramStreaks[pattern] ?? 0;
             return (
@@ -151,7 +147,7 @@ export function TypingArea({
                   {Array.from({ length: 3 }).map((_, i) => (
                     <span
                       key={i}
-                      className={`w-2 h-1.5 rounded-sm ${i < streak ? 'bg-yellow-400' : 'bg-gray-700'}`}
+                      className={`w-2 h-1.5 rounded-sm ${i < streak ? 'bg-yellow-400' : 'bg-gray-300 dark:bg-gray-700'}`}
                     />
                   ))}
                 </div>
@@ -160,7 +156,6 @@ export function TypingArea({
           })}
         </div>
       )}
-
 
       <div className="select-none">
         <WordDisplay
@@ -178,14 +173,14 @@ export function TypingArea({
           {duration === 'infinite' && (
             <button
               onClick={onEndTest}
-              className="text-xs text-gray-500 hover:text-gray-300 transition-colors font-mono"
+              className="text-xs text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors font-mono"
             >
               end
             </button>
           )}
           <button
             onClick={onRestart}
-            className="text-xs text-gray-700 hover:text-gray-500 transition-colors font-mono"
+            className="text-xs text-gray-300 hover:text-gray-500 dark:text-gray-700 dark:hover:text-gray-500 transition-colors font-mono"
           >
             restart
           </button>

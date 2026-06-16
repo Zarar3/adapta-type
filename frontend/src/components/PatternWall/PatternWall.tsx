@@ -23,16 +23,16 @@ function PatternCard({ record, isOpen, isStruggling, onOpen, onClose, onPractice
   const { pattern, completed, bestWpm, bestAccuracy, sessionCount } = record;
 
   const borderClasses = completed
-    ? 'border-green-500/30 bg-green-950/15 hover:border-green-400/50'
+    ? 'border-green-500/30 bg-green-50/50 dark:bg-green-950/15 hover:border-green-400/50'
     : isStruggling
-      ? 'border-yellow-500/40 bg-yellow-950/20 hover:border-yellow-400/70'
-      : 'border-gray-700/40 bg-gray-800/20 hover:border-gray-600/60';
+      ? 'border-yellow-500/40 bg-yellow-50/50 dark:bg-yellow-950/20 hover:border-yellow-400/70'
+      : 'border-gray-300/40 dark:border-gray-700/40 bg-gray-100/50 dark:bg-gray-800/20 hover:border-gray-400/60 dark:hover:border-gray-600/60';
 
   const patternTextClass = completed
-    ? 'text-green-300'
+    ? 'text-green-600 dark:text-green-300'
     : isStruggling
-      ? 'text-yellow-300'
-      : 'text-gray-300';
+      ? 'text-yellow-600 dark:text-yellow-300'
+      : 'text-gray-700 dark:text-gray-300';
 
   if (isOpen) {
     return (
@@ -45,20 +45,20 @@ function PatternCard({ record, isOpen, isStruggling, onOpen, onClose, onPractice
           {sessionCount && sessionCount > 0 ? (
             <>
               <div className="flex items-center gap-3 text-sm font-mono">
-                <span className="text-yellow-400 font-semibold">{bestWpm} wpm</span>
-                <span className="text-gray-700">·</span>
-                <span className="text-gray-400">{bestAccuracy}% acc</span>
+                <span className="text-yellow-500 dark:text-yellow-400 font-semibold">{bestWpm} wpm</span>
+                <span className="text-gray-400 dark:text-gray-700">·</span>
+                <span className="text-gray-500 dark:text-gray-400">{bestAccuracy}% acc</span>
               </div>
-              <span className="text-xs text-gray-600">
+              <span className="text-xs text-gray-400 dark:text-gray-600">
                 {sessionCount} session{sessionCount !== 1 ? 's' : ''}
               </span>
             </>
           ) : (
-            <span className="text-xs text-gray-600">no sessions yet</span>
+            <span className="text-xs text-gray-400 dark:text-gray-600">no sessions yet</span>
           )}
         </div>
 
-        <div className="w-full h-px bg-gray-800" />
+        <div className="w-full h-px bg-gray-200 dark:bg-gray-800" />
 
         <p className="text-xs text-gray-500">choose duration</p>
         <div className="flex gap-2">
@@ -66,7 +66,7 @@ function PatternCard({ record, isOpen, isStruggling, onOpen, onClose, onPractice
             <button
               key={m}
               onClick={() => onPractice(pattern, m)}
-              className="px-3 py-1.5 rounded-lg text-sm font-mono bg-gray-800 text-gray-300 hover:bg-yellow-400 hover:text-gray-900 transition-colors"
+              className="px-3 py-1.5 rounded-lg text-sm font-mono bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-yellow-400 hover:text-gray-900 transition-colors"
             >
               {m}s
             </button>
@@ -74,7 +74,7 @@ function PatternCard({ record, isOpen, isStruggling, onOpen, onClose, onPractice
         </div>
         <button
           onClick={onClose}
-          className="text-xs text-gray-700 hover:text-gray-500 transition-colors"
+          className="text-xs text-gray-400 dark:text-gray-700 hover:text-gray-600 dark:hover:text-gray-500 transition-colors"
         >
           cancel
         </button>
@@ -94,7 +94,7 @@ function PatternCard({ record, isOpen, isStruggling, onOpen, onClose, onPractice
         ? <span className="text-xs text-green-500 font-medium">mastered</span>
         : isStruggling
           ? <span className="text-xs text-yellow-500/70 group-hover:text-yellow-400 transition-colors">struggling →</span>
-          : <span className="text-xs text-gray-600 group-hover:text-gray-400 transition-colors">practice →</span>
+          : <span className="text-xs text-gray-400 dark:text-gray-600 group-hover:text-gray-600 dark:group-hover:text-gray-400 transition-colors">practice →</span>
       }
     </button>
   );
@@ -109,8 +109,8 @@ export function PatternWall({ library, onPractice }: Props) {
   if (entries.length === 0) {
     return (
       <div className="w-full max-w-4xl mx-auto text-center py-32">
-        <p className="text-gray-400 text-lg font-medium">your pattern wall is empty</p>
-        <p className="text-gray-600 text-sm mt-2 max-w-xs mx-auto leading-relaxed">
+        <p className="text-gray-500 dark:text-gray-400 text-lg font-medium">your pattern wall is empty</p>
+        <p className="text-gray-400 dark:text-gray-600 text-sm mt-2 max-w-xs mx-auto leading-relaxed">
           finish a typing test and your weak letter combinations will appear here
         </p>
       </div>
@@ -134,17 +134,17 @@ export function PatternWall({ library, onPractice }: Props) {
     <div className="w-full max-w-5xl mx-auto">
       <div className="flex items-center gap-6 mb-8 text-sm font-mono">
         <span className="text-gray-500">
-          <span className="text-yellow-400 font-semibold">{pending.length}</span> to practice
+          <span className="text-yellow-500 dark:text-yellow-400 font-semibold">{pending.length}</span> to practice
         </span>
-        <span className="text-gray-700">·</span>
+        <span className="text-gray-300 dark:text-gray-700">·</span>
         <span className="text-gray-500">
-          <span className="text-green-400 font-semibold">{done.length}</span> mastered
+          <span className="text-green-500 dark:text-green-400 font-semibold">{done.length}</span> mastered
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-0 divide-x divide-gray-800">
-        <section className="pr-8">
-          <h2 className="text-[11px] text-gray-600 font-medium uppercase tracking-[0.2em] mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-0 sm:divide-x divide-gray-200 dark:divide-gray-800">
+        <section className="sm:pr-8 mb-8 sm:mb-0">
+          <h2 className="text-[11px] text-gray-400 dark:text-gray-600 font-medium uppercase tracking-[0.2em] mb-4">
             needs practice
           </h2>
           {pending.length > 0 ? (
@@ -152,12 +152,12 @@ export function PatternWall({ library, onPractice }: Props) {
               {pending.map(p => <PatternCard {...makeCardProps(p)} />)}
             </div>
           ) : (
-            <p className="text-gray-700 text-sm">nothing here yet</p>
+            <p className="text-gray-400 dark:text-gray-700 text-sm">nothing here yet</p>
           )}
         </section>
 
-        <section className="pl-8">
-          <h2 className="text-[11px] text-gray-600 font-medium uppercase tracking-[0.2em] mb-4">
+        <section className="sm:pl-8">
+          <h2 className="text-[11px] text-gray-400 dark:text-gray-600 font-medium uppercase tracking-[0.2em] mb-4">
             mastered
           </h2>
           {done.length > 0 ? (
@@ -165,7 +165,7 @@ export function PatternWall({ library, onPractice }: Props) {
               {done.map(p => <PatternCard {...makeCardProps(p)} />)}
             </div>
           ) : (
-            <p className="text-gray-700 text-sm">complete a practice session to master patterns</p>
+            <p className="text-gray-400 dark:text-gray-700 text-sm">complete a practice session to master patterns</p>
           )}
         </section>
       </div>

@@ -14,6 +14,17 @@ export default function App() {
   const { enabled: soundEnabled, toggle: toggleSound, playCorrect, playWrong } = useSound();
   const [view, setView] = useState<'typing' | 'wall'>('typing');
 
+  const [theme, setTheme] = useState<'dark' | 'light'>(() =>
+    (localStorage.getItem('adapta-type-theme') as 'dark' | 'light') ?? 'dark'
+  );
+  const toggleTheme = useCallback(() => {
+    setTheme(t => {
+      const next = t === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('adapta-type-theme', next);
+      return next;
+    });
+  }, []);
+
   const goHome = useCallback(() => { reset(); setView('typing'); }, [reset]);
 
   // Tab + Enter to go home from anywhere
@@ -50,16 +61,18 @@ export default function App() {
   const handleRestart = useCallback(() => goHome(), [goHome]);
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 flex flex-col">
+    <div className={`min-h-screen flex flex-col ${theme === 'dark' ? 'dark bg-gray-950 text-gray-100' : 'bg-gray-50 text-gray-900'}`}>
       <Header
         view={view}
         onToggleView={() => setView(v => v === 'typing' ? 'wall' : 'typing')}
         onLogoClick={goHome}
         soundEnabled={soundEnabled}
         onToggleSound={toggleSound}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
 
-      <main className="flex-1 flex flex-col items-center justify-center px-6 py-12">
+      <main className="flex-1 flex flex-col items-center justify-center px-4 py-6 sm:px-6 sm:py-12">
         {view === 'wall' ? (
           <PatternWall library={library} onPractice={handlePracticePattern} />
         ) : state.testState === 'finished' && state.results ? (
@@ -94,7 +107,7 @@ export default function App() {
         )}
       </main>
 
-      <footer className="text-center py-4 text-gray-700 text-s">
+      <footer className="text-center py-4 text-gray-400 dark:text-gray-700 text-s">
         tab + enter to restart
       </footer>
     </div>
