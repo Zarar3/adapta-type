@@ -12,6 +12,15 @@ export interface DifficultyChange {
   level: number;
 }
 
+export type GameMode = 'timed' | 'words' | 'quote' | 'custom';
+export type WordCountTarget = 10 | 25 | 50 | 100;
+
+export interface Quote {
+  text: string;
+  author: string;
+  source?: string;
+}
+
 export interface TestResults {
   wpm: number;
   rawWpm: number;
@@ -25,6 +34,7 @@ export interface TestResults {
   preRunSlowKeys: string[];            // flagged-slow keys captured before this run's timing was merged
   ngramGraduated: Record<string, number>;
   difficultyHistory: DifficultyChange[];
+  quote?: Quote;
 }
 
 export type TestState = 'idle' | 'running' | 'finished';

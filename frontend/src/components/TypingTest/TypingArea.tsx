@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { WordDisplay } from './WordDisplay';
 import { TimerBar } from './TimerBar';
 import { calcWpm, calcAccuracy } from '../../lib/statsCalculator';
-import type { TestState, TimedMode } from '../../types';
+import type { TestState, TimedMode, GameMode, WordCountTarget, Quote } from '../../types';
 
 interface LineData {
   words: string[];
@@ -13,6 +13,11 @@ interface Props {
   testState: TestState;
   timeLeft: number;
   duration: TimedMode;
+  gameMode: GameMode;
+  wordTarget: WordCountTarget | null;
+  wordsCompleted: number;
+  currentQuote: Quote | null;
+  customText: string;
   line: LineData;
   currentWord: number;
   currentChar: number;
@@ -25,6 +30,10 @@ interface Props {
   totalChars: number;
   onKeyDown: (e: KeyboardEvent) => void;
   onChangeDuration: (d: TimedMode) => void;
+  onChangeMode: (m: GameMode) => void;
+  onChangeWordTarget: (t: WordCountTarget) => void;
+  onChangeCustomText: (t: string) => void;
+  onStartCustom: () => void;
   onRestart: () => void;
   onEndTest?: () => void;
   playCorrect?: () => void;
@@ -34,9 +43,10 @@ interface Props {
 const DIFFICULTY_LABELS = ['', 'easy', 'medium', 'hard', 'expert'];
 
 export function TypingArea({
-  testState, timeLeft, duration, line,
-  currentWord, currentChar, ngramDisplayOrder, ngramStreaks, difficultyLevel, focusedPattern, showLineHint,
-  correctChars, totalChars, onKeyDown, onChangeDuration, onRestart, onEndTest, playCorrect, playWrong,
+  testState, timeLeft, duration, gameMode, wordTarget, wordsCompleted, currentQuote, customText,
+  line, currentWord, currentChar, ngramDisplayOrder, ngramStreaks, difficultyLevel, focusedPattern, showLineHint,
+  correctChars, totalChars, onKeyDown, onChangeDuration, onChangeMode, onChangeWordTarget,
+  onChangeCustomText, onStartCustom, onRestart, onEndTest, playCorrect, playWrong,
 }: Props) {
   const focusPatterns = focusedPattern ? [] : ngramDisplayOrder;
 
@@ -100,8 +110,42 @@ export function TypingArea({
         testState={testState}
         timeLeft={timeLeft}
         duration={duration}
+        gameMode={gameMode}
+        wordTarget={wordTarget}
+        wordsCompleted={wordsCompleted}
         onChangeDuration={onChangeDuration}
+        onChangeMode={onChangeMode}
+        onChangeWordTarget={onChangeWordTarget}
       />
+
+      {gameMode === 'custom' && testState === 'idle' && (
+        <div className="mb-6">
+          <textarea
+            className="w-full h-28 bg-gray-100 dark:bg-gray-900 rounded-lg p-3 text-sm font-mono
+                       text-gray-700 dark:text-gray-300 resize-none border border-gray-300 dark:border-gray-700
+                       focus:outline-none focus:border-yellow-400"
+            placeholder="paste your text here, then press start..."
+            value={customText}
+            onChange={e => onChangeCustomText(e.target.value)}
+          />
+          <div className="flex justify-center mt-2">
+            <button
+              onClick={onStartCustom}
+              disabled={customText.trim().split(/\s+/).filter(Boolean).length < 3}
+              className="px-4 py-1.5 rounded bg-yellow-400 text-gray-900 text-sm font-medium
+                         disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              start
+            </button>
+          </div>
+        </div>
+      )}
+
+      {gameMode === 'quote' && currentQuote && testState === 'running' && (
+        <p className="text-center text-xs text-gray-500 dark:text-gray-600 mb-3 font-mono">
+          — {currentQuote.author}{currentQuote.source ? `, ${currentQuote.source}` : ''}
+        </p>
+      )}
 
       {testState === 'idle' && (
         <p className="text-center text-gray-400 dark:text-gray-600 text-sm mb-4">click here or start typing</p>
@@ -170,7 +214,7 @@ export function TypingArea({
 
       {testState === 'running' && (
         <div className="flex justify-center gap-4 mt-6">
-          {duration === 'infinite' && (
+          {duration === 'infinite' && gameMode === 'timed' && (
             <button
               onClick={onEndTest}
               className="text-xs text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors font-mono"

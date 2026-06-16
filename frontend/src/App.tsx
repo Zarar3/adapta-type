@@ -6,13 +6,18 @@ import { PatternWall } from './components/PatternWall/PatternWall';
 import { useTypingEngine } from './hooks/useTypingEngine';
 import { usePatternLibrary } from './hooks/usePatternLibrary';
 import { useSound } from './hooks/useSound';
-import type { TimedMode } from './types';
+import { QUOTES } from './data/quotes';
+import type { TimedMode, GameMode, WordCountTarget } from './types';
 
 export default function App() {
-  const { state, handleKeyDown, reset, changeDuration, startFocusedSession, endTest } = useTypingEngine();
+  const { state, handleKeyDown, reset, changeDuration, startFocusedSession, endTest,
+          startWordCountSession, startQuoteSession, startCustomSession } = useTypingEngine();
   const { library, addFromSession, markCompleted, recordFocusedSession } = usePatternLibrary();
   const { enabled: soundEnabled, toggle: toggleSound, playCorrect, playWrong } = useSound();
   const [view, setView] = useState<'typing' | 'wall'>('typing');
+  const [gameMode, setGameMode] = useState<GameMode>('timed');
+  const [wordTarget, setWordTarget] = useState<WordCountTarget>(25);
+  const [customText, setCustomText] = useState('');
 
   const [theme, setTheme] = useState<'dark' | 'light'>(() =>
     (localStorage.getItem('adapta-type-theme') as 'dark' | 'light') ?? 'dark'
@@ -27,18 +32,61 @@ export default function App() {
 
   const goHome = useCallback(() => { reset(); setView('typing'); }, [reset]);
 
-  // Tab + Enter to go home from anywhere
+  const pickRandomQuote = useCallback(() => QUOTES[Math.floor(Math.random() * QUOTES.length)], []);
+
+  const handleChangeMode = useCallback((m: GameMode) => {
+    setGameMode(m);
+    setView('typing');
+    if (m === 'quote') {
+      startQuoteSession(pickRandomQuote());
+    } else if (m === 'words') {
+      startWordCountSession(wordTarget);
+    } else {
+      reset();
+    }
+  }, [reset, startQuoteSession, startWordCountSession, wordTarget, pickRandomQuote]);
+
+  const handleChangeWordTarget = useCallback((t: WordCountTarget) => {
+    setWordTarget(t);
+    startWordCountSession(t);
+  }, [startWordCountSession]);
+
+  const handleStartCustom = useCallback(() => {
+    startCustomSession(customText);
+  }, [startCustomSession, customText]);
+
+  const handleRestart = useCallback(() => {
+    setView('typing');
+    if (gameMode === 'quote') {
+      startQuoteSession(pickRandomQuote());
+    } else if (gameMode === 'words') {
+      startWordCountSession(wordTarget);
+    } else {
+      reset();
+    }
+  }, [gameMode, wordTarget, reset, startQuoteSession, startWordCountSession, pickRandomQuote]);
+
+  // Tab + Enter to restart from anywhere
   useEffect(() => {
     let tabHeld = false;
     const down = (e: KeyboardEvent) => {
       if (e.key === 'Tab') { e.preventDefault(); tabHeld = true; }
-      if (e.key === 'Enter' && tabHeld) goHome();
+      if (e.key === 'Enter' && tabHeld) {
+        setView('typing');
+        if (gameMode === 'quote') {
+          startQuoteSession(pickRandomQuote());
+        } else if (gameMode === 'words') {
+          startWordCountSession(wordTarget);
+        } else {
+          goHome();
+        }
+      }
     };
     const up = (e: KeyboardEvent) => { if (e.key === 'Tab') tabHeld = false; };
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
-  }, [goHome]);
+  }, [goHome, gameMode, wordTarget, startQuoteSession, startWordCountSession, pickRandomQuote]);
 
   // On test finish: save patterns, mark focused session complete
   const prevTestStateRef = useRef(state.testState);
@@ -57,8 +105,6 @@ export default function App() {
     startFocusedSession(pattern, duration);
     setView('typing');
   }, [startFocusedSession]);
-
-  const handleRestart = useCallback(() => goHome(), [goHome]);
 
   return (
     <div className={`min-h-screen flex flex-col ${theme === 'dark' ? 'dark bg-gray-950 text-gray-100' : 'bg-gray-50 text-gray-900'}`}>
@@ -87,6 +133,11 @@ export default function App() {
             testState={state.testState}
             timeLeft={state.timeLeft}
             duration={state.duration}
+            gameMode={gameMode}
+            wordTarget={wordTarget}
+            wordsCompleted={state.wordsCompleted}
+            currentQuote={state.currentQuote}
+            customText={customText}
             line={state.line}
             currentWord={state.currentWord}
             currentChar={state.currentChar}
@@ -99,6 +150,10 @@ export default function App() {
             totalChars={state.totalChars}
             onKeyDown={handleKeyDown}
             onChangeDuration={changeDuration}
+            onChangeMode={handleChangeMode}
+            onChangeWordTarget={handleChangeWordTarget}
+            onChangeCustomText={setCustomText}
+            onStartCustom={handleStartCustom}
             onRestart={handleRestart}
             onEndTest={endTest}
             playCorrect={playCorrect}

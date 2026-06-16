@@ -3,7 +3,7 @@ import { generateLine, generateWord, hasSufficientCoverage } from '../lib/wordSe
 import { updateNgramStats, promoteNgrams, saveTimingToStorage, loadStoredTiming, getSlowPatterns, getFlaggedSlowKeys, incrementSessionCount, updateStrugglingPatterns, markPatternPracticed, saveActiveNgrams, loadActiveNgrams, clearActiveNgrams } from '../lib/ngramTracker';
 import type { NgramStats, StoredTiming } from '../lib/ngramTracker';
 import { calcWpm, calcRawWpm, calcAccuracy } from '../lib/statsCalculator';
-import type { CharState, TestState, TimedMode, WpmDataPoint, TestResults, DifficultyChange } from '../types';
+import type { CharState, TestState, TimedMode, WpmDataPoint, TestResults, DifficultyChange, GameMode, WordCountTarget, Quote } from '../types';
 
 function streakThreshold(duration: TimedMode): number {
   if (duration === 'infinite') return 5;
@@ -20,6 +20,12 @@ interface LineData {
 interface EngineState {
   testState: TestState;
   duration: TimedMode;
+  gameMode: GameMode;
+  wordTarget: WordCountTarget | null;
+  wordsCompleted: number;
+  fixedWords: string[] | null;
+  fixedWordOffset: number;
+  currentQuote: Quote | null;
   timeLeft: number;
   // Only the active line is held in state; the next line is generated on completion
   line: LineData;
@@ -109,7 +115,17 @@ function updateStreaks(
   return { ngrams: newNgrams, ngramStreaks: newStreaks, ngramGraduated: newGraduated, ngramStats: newStats };
 }
 
-function buildInitialState(duration: TimedMode): EngineState {
+interface ModeOpts {
+  wordTarget?: WordCountTarget;
+  fixedWords?: string[];
+  quote?: Quote;
+}
+
+function buildInitialState(
+  duration: TimedMode,
+  gameMode: GameMode = 'timed',
+  opts: ModeOpts = {},
+): EngineState {
   const slowPatterns = getSlowPatterns();
   const slowNgrams = Object.fromEntries(slowPatterns.map(p => [p.ng, 1]));
   const slowNgramKeys = Object.fromEntries(slowPatterns.map(p => [p.ng, true as const]));
@@ -118,8 +134,16 @@ function buildInitialState(duration: TimedMode): EngineState {
   return {
     testState: 'idle',
     duration,
+    gameMode,
+    wordTarget: opts.wordTarget ?? null,
+    wordsCompleted: 0,
+    fixedWords: opts.fixedWords ?? null,
+    fixedWordOffset: 0,
+    currentQuote: opts.quote ?? null,
     timeLeft: duration === 'infinite' ? 0 : duration,
-    line: makeLineData(generateLine(mergedNgrams, 3, 1)),
+    line: opts.fixedWords
+      ? makeLineData(opts.fixedWords.slice(0, 3))
+      : makeLineData(generateLine(mergedNgrams, 3, 1)),
     currentWord: 0,
     currentChar: 0,
     ngrams: mergedNgrams,
@@ -193,6 +217,7 @@ export function useTypingEngine() {
       preRunSlowKeys,
       ngramGraduated: s.ngramGraduated,
       difficultyHistory: s.difficultyHistory,
+      quote: s.currentQuote ?? undefined,
     };
 
     // Persist per-bigram timing and struggling patterns to localStorage
@@ -271,6 +296,20 @@ export function useTypingEngine() {
       finishTest(stateRef.current);
     }
   }, [state.timeLeft, state.testState, state.duration, finishTest]);
+
+  // Watch for word-count mode completion
+  useEffect(() => {
+    if (state.gameMode === 'words' && state.wordsCompleted >= (state.wordTarget ?? Infinity) && state.testState === 'running') {
+      finishTest(stateRef.current);
+    }
+  }, [state.wordsCompleted, state.gameMode, state.wordTarget, state.testState, finishTest]);
+
+  // Watch for fixed-text mode completion (quote/custom)
+  useEffect(() => {
+    if (state.fixedWords && state.fixedWordOffset + 2 >= state.fixedWords.length && state.testState === 'running' && state.wordsCompleted > 0) {
+      finishTest(stateRef.current);
+    }
+  }, [state.fixedWordOffset, state.fixedWords, state.testState, state.wordsCompleted, finishTest]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     // Ignore modifier keys and function keys
@@ -433,7 +472,32 @@ export function useTypingEngine() {
           longestPerfectStreak: Math.max(next.longestPerfectStreak, newStreak),
           errorWordStreak: adjustedErrorStreak,
           currentWordHadError: false,
+          wordsCompleted: next.wordsCompleted + 1,
         };
+
+        // Word-count mode: finish when target reached
+        if (next.gameMode === 'words' && next.wordsCompleted + 1 >= (next.wordTarget ?? Infinity)) {
+          return { ...next, ...shared };
+        }
+
+        // Fixed-word modes (quote/custom): advance window or finish
+        if (next.fixedWords) {
+          const nextOffset = next.fixedWordOffset + 1;
+          if (nextOffset + 2 >= next.fixedWords.length) {
+            return { ...next, ...shared, fixedWordOffset: nextOffset };
+          }
+          const fwWords = next.fixedWords.slice(nextOffset, nextOffset + 3);
+          return {
+            ...next,
+            ...shared,
+            fixedWordOffset: nextOffset,
+            showLineHint: false,
+            line: { words: fwWords, charStates: fwWords.map(w => Array(w.length).fill('untyped') as CharState[]) },
+            currentWord: 0,
+            currentChar: 0,
+          };
+        }
+
         const excludeList = [...new Set([...updatedRecent, line.words[1], line.words[2]])];
         const nextWord = generateWord(lineNgrams, newDifficulty, excludeList, wordBias);
         const newWords = [line.words[1], line.words[2], nextWord];
@@ -512,6 +576,34 @@ export function useTypingEngine() {
     });
   }, [stopTicker]);
 
+  const startWordCountSession = useCallback((target: WordCountTarget) => {
+    stopTicker();
+    secondCountRef.current = 0;
+    startTimeRef.current = null;
+    const dur: TimedMode = 'infinite';
+    setDuration(dur);
+    setState(buildInitialState(dur, 'words', { wordTarget: target }));
+  }, [stopTicker]);
+
+  const startQuoteSession = useCallback((quote: Quote) => {
+    stopTicker();
+    secondCountRef.current = 0;
+    startTimeRef.current = null;
+    const words = quote.text.split(/\s+/).filter(Boolean);
+    setDuration('infinite');
+    setState(buildInitialState('infinite', 'quote', { fixedWords: words, quote }));
+  }, [stopTicker]);
+
+  const startCustomSession = useCallback((text: string) => {
+    stopTicker();
+    secondCountRef.current = 0;
+    startTimeRef.current = null;
+    const words = text.trim().split(/\s+/).filter(Boolean);
+    if (words.length < 3) return;
+    setDuration('infinite');
+    setState(buildInitialState('infinite', 'custom', { fixedWords: words }));
+  }, [stopTicker]);
+
   // Cleanup on unmount
   useEffect(() => () => stopTicker(), [stopTicker]);
 
@@ -527,6 +619,9 @@ export function useTypingEngine() {
     reset,
     changeDuration,
     startFocusedSession,
+    startWordCountSession,
+    startQuoteSession,
+    startCustomSession,
     endTest,
   };
 }

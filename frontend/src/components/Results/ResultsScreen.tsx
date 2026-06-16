@@ -28,6 +28,16 @@ export function ResultsScreen({ results, focusedPattern, onRestart, onPracticePa
           </span>
         </div>
       )}
+      {results.quote && (
+        <div className="flex justify-center mb-4">
+          <p className="text-xs text-gray-500 font-mono text-center">
+            "{results.quote.text.slice(0, 60)}{results.quote.text.length > 60 ? '…' : ''}"
+            <br />
+            <span className="text-gray-600">— {results.quote.author}</span>
+          </p>
+        </div>
+      )}
+
       <StatsBar
         wpm={results.wpm}
         rawWpm={results.rawWpm}
