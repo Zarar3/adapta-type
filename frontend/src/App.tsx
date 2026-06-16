@@ -20,6 +20,7 @@ export default function App() {
   const [wordTarget, setWordTarget] = useState<WordCountTarget>(25);
   const [customText, setCustomText] = useState('');
   const [raceRoomId, setRaceRoomId] = useState<string | null>(null);
+  const [raceStarted, setRaceStarted] = useState(false);
 
   const [theme, setTheme] = useState<'dark' | 'light'>(() =>
     (localStorage.getItem('adapta-type-theme') as 'dark' | 'light') ?? 'dark'
@@ -153,14 +154,56 @@ export default function App() {
 
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-6 sm:px-6 sm:py-12">
         {view === 'race' && raceRoomId ? (
-          <RaceRoom
-            roomId={raceRoomId}
-            onStart={() => startWordCountSession(50)}
-            wordsCompleted={state.wordsCompleted}
-            currentWpm={state.wpmHistory.length > 0 ? state.wpmHistory[state.wpmHistory.length - 1].wpm : 0}
-            isFinished={state.testState === 'finished'}
-            onLeave={() => { setView('typing'); setRaceRoomId(null); reset(); }}
-          />
+          <div className="w-full flex flex-col items-center gap-8">
+            <RaceRoom
+              roomId={raceRoomId}
+              onStart={() => { startWordCountSession(50); setRaceStarted(true); }}
+              wordsCompleted={state.wordsCompleted}
+              currentWpm={state.wpmHistory.length > 0 ? state.wpmHistory[state.wpmHistory.length - 1].wpm : 0}
+              isFinished={state.testState === 'finished'}
+              onLeave={() => { setView('typing'); setRaceRoomId(null); setRaceStarted(false); reset(); }}
+            />
+            {raceStarted && state.testState !== 'finished' && (
+              <TypingArea
+                testState={state.testState}
+                timeLeft={state.timeLeft}
+                duration={state.duration}
+                gameMode={gameMode}
+                wordTarget={wordTarget}
+                wordsCompleted={state.wordsCompleted}
+                currentQuote={state.currentQuote}
+                customText={customText}
+                line={state.line}
+                currentWord={state.currentWord}
+                currentChar={state.currentChar}
+                ngramDisplayOrder={state.ngramDisplayOrder}
+                ngramStreaks={state.ngramStreaks}
+                difficultyLevel={state.difficultyLevel}
+                focusedPattern={state.focusedPattern}
+                showLineHint={state.showLineHint}
+                correctChars={state.correctChars}
+                totalChars={state.totalChars}
+                onKeyDown={handleKeyDown}
+                onChangeDuration={changeDuration}
+                onChangeMode={handleChangeMode}
+                onChangeWordTarget={handleChangeWordTarget}
+                onChangeCustomText={setCustomText}
+                onStartCustom={handleStartCustom}
+                onRestart={handleRestart}
+                onEndTest={endTest}
+                playCorrect={playCorrect}
+                playWrong={playWrong}
+              />
+            )}
+            {raceStarted && state.testState === 'finished' && state.results && (
+              <ResultsScreen
+                results={state.results}
+                focusedPattern={state.focusedPattern}
+                onRestart={handleRestart}
+                onPracticePattern={handlePracticePattern}
+              />
+            )}
+          </div>
         ) : view === 'wall' ? (
           <PatternWall library={library} onPractice={handlePracticePattern} />
         ) : state.testState === 'finished' && state.results ? (
