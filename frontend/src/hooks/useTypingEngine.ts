@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { generateLine, generateWord, generateWordContaining, hasSufficientCoverage } from '../lib/wordSelector';
-import { updateNgramStats, promoteNgrams, saveTimingToStorage, loadStoredTiming, getSlowPatterns, getFlaggedSlowKeys, incrementSessionCount, updateStrugglingPatterns, markPatternPracticed, saveActiveNgrams, loadActiveNgrams, clearActiveNgrams } from '../lib/ngramTracker';
+import { updateNgramStats, promoteNgrams, saveTimingToStorage, loadStoredTiming, getSlowPatterns, getFlaggedSlowKeys, incrementSessionCount, updateStrugglingPatterns, markPatternPracticed, saveActiveNgrams, loadActiveNgrams, clearActiveNgrams, loadSurviveBest, saveSurviveBest } from '../lib/ngramTracker';
 import type { NgramStats, StoredTiming } from '../lib/ngramTracker';
 import { calcWpm, calcRawWpm, calcAccuracy } from '../lib/statsCalculator';
 import type { CharState, TestState, TimedMode, WpmDataPoint, TestResults, DifficultyChange, GameMode, Quote } from '../types';
@@ -55,6 +55,21 @@ interface EngineState {
   wpmHistory: WpmDataPoint[];
   results: TestResults | null;
   spaceBlocked: boolean;
+  // Survive mode fields (zero/false/null in all other modes)
+  surviveScore: number;
+  survivePerfectCombo: number;
+  surviveComboMultiplier: number;
+  surviveGoldenMode: boolean;
+  surviveGoldenTimeLeft: number;
+  surviveGoldenCount: number;
+  surviveMaxCombo: number;
+  surviveNextGoldenWord: number;
+  surviveBombActive: boolean;
+  surviveBombCountdown: number;
+  surviveNextBombWord: number;
+  surviveNextFreezeWord: number;
+  survivePenaltyAppliedThisWord: boolean;
+  surviveLastWordScore: { value: number; golden: boolean; id: number } | null;
 }
 
 function makeLineData(words: string[]): LineData {
@@ -176,6 +191,20 @@ function buildInitialState(
     wpmHistory: [],
     results: null,
     spaceBlocked: false,
+    surviveScore: 0,
+    survivePerfectCombo: 0,
+    surviveComboMultiplier: 1,
+    surviveGoldenMode: false,
+    surviveGoldenTimeLeft: 0,
+    surviveGoldenCount: 0,
+    surviveMaxCombo: 0,
+    surviveNextGoldenWord: gameMode === 'survive' ? 9 + Math.floor(Math.random() * 4) : 0,
+    surviveBombActive: false,
+    surviveBombCountdown: 0,
+    surviveNextBombWord: gameMode === 'survive' ? 19 + Math.floor(Math.random() * 4) : 0,
+    surviveNextFreezeWord: gameMode === 'survive' ? 14 + Math.floor(Math.random() * 3) : 0,
+    survivePenaltyAppliedThisWord: false,
+    surviveLastWordScore: null,
   };
 }
 
@@ -205,7 +234,12 @@ export function useTypingEngine(requireCorrectWord = false) {
 
   const finishTest = useCallback((s: EngineState) => {
     stopTicker();
-    const elapsedMs = s.duration === 'infinite' ? s.timeLeft * 1000 : (s.duration as number) * 1000;
+    // For survive mode, use secondCountRef to measure actual elapsed time
+    const elapsedMs = s.gameMode === 'survive'
+      ? secondCountRef.current * 1000
+      : s.duration === 'infinite'
+        ? s.timeLeft * 1000
+        : (s.duration as number) * 1000;
     const wpm = calcWpm(s.correctChars, elapsedMs);
     const rawWpm = calcRawWpm(s.totalChars, elapsedMs);
     const accuracy = calcAccuracy(s.correctChars, s.totalChars);
@@ -229,7 +263,18 @@ export function useTypingEngine(requireCorrectWord = false) {
       ngramGraduated: s.ngramGraduated,
       difficultyHistory: s.difficultyHistory,
       quote: s.currentQuote ?? undefined,
+      ...(s.gameMode === 'survive' && {
+        surviveScore: s.surviveScore,
+        surviveMaxCombo: s.surviveMaxCombo,
+        surviveGoldenCount: s.surviveGoldenCount,
+      }),
     };
+
+    // Save survive personal best
+    if (s.gameMode === 'survive') {
+      const best = loadSurviveBest();
+      if (s.surviveScore > best) saveSurviveBest(s.surviveScore);
+    }
 
     // Persist per-bigram timing and struggling patterns to localStorage
     saveTimingToStorage(s.ngramStats);
@@ -271,6 +316,38 @@ export function useTypingEngine(requireCorrectWord = false) {
         raw: rawWpm,
         errors: s.errorCount,
       };
+
+      if (s.gameMode === 'survive') {
+        // Survive: timeLeft is dynamic (bonus/penalty modify it directly); just decrement by 1
+        setState(prev => {
+          if (prev.testState !== 'running') return prev;
+          const newTimeLeft = Math.max(0, prev.timeLeft - 1);
+          const updates: Partial<EngineState> = {
+            timeLeft: newTimeLeft,
+            wpmHistory: [...prev.wpmHistory, newPoint],
+          };
+          // Golden mode countdown
+          if (prev.surviveGoldenMode) {
+            const gt = prev.surviveGoldenTimeLeft - 1;
+            updates.surviveGoldenMode = gt > 0;
+            updates.surviveGoldenTimeLeft = Math.max(0, gt);
+          }
+          // Bomb countdown
+          if (prev.surviveBombActive && prev.surviveBombCountdown > 0) {
+            const bt = prev.surviveBombCountdown - 1;
+            if (bt <= 0) {
+              updates.surviveBombActive = false;
+              updates.surviveBombCountdown = 0;
+              updates.timeLeft = Math.max(0, newTimeLeft - 2);
+              updates.surviveNextBombWord = prev.wordsCompleted + 18 + Math.floor(Math.random() * 4);
+            } else {
+              updates.surviveBombCountdown = bt;
+            }
+          }
+          return { ...prev, ...updates };
+        });
+        return;
+      }
 
       if (s.duration === 'infinite') {
         // Count up; never auto-finish
@@ -488,21 +565,94 @@ export function useTypingEngine(requireCorrectWord = false) {
           wordsCompleted: next.wordsCompleted + 1,
         };
 
+        // ── SURVIVE MODE SCORING ──────────────────────────────────────
+        let surviveUpdates: Partial<EngineState> = {};
+        if (next.gameMode === 'survive') {
+          const wc = next.wordsCompleted; // value BEFORE incrementing
+          const isGoldenWord = wc === next.surviveNextGoldenWord;
+          const isFreezeWord = wc === next.surviveNextFreezeWord;
+          const isBombWord   = next.surviveBombActive;
+          const hadError     = next.currentWordHadError;
+
+          const BASE_SCORES = [50, 100, 250, 500];
+          const base = BASE_SCORES[next.difficultyLevel - 1] ?? 50;
+          const inGoldenMode   = next.surviveGoldenMode && !hadError;
+          const goldenWordBonus = isGoldenWord && !hadError;
+          const scoreMult = (inGoldenMode || goldenWordBonus ? 2 : 1) * next.surviveComboMultiplier;
+          const wordScore = Math.round(base * scoreMult);
+
+          const newCombo = hadError ? 0 : next.survivePerfectCombo + 1;
+          const newMult  = hadError ? 1 : Math.min(2, 1 + Math.floor(newCombo / 5) * 0.5);
+          const newMaxCombo = Math.max(next.surviveMaxCombo, newCombo);
+
+          let timeAdjust = 0;
+          if (!hadError && newCombo > 0 && newCombo % 3 === 0) timeAdjust += 2;
+          if (isFreezeWord && !hadError) timeAdjust += 2;
+          const newTimeLeft = Math.min(90, next.timeLeft + timeAdjust);
+
+          let newGoldenMode = hadError ? false : next.surviveGoldenMode;
+          let newGoldenTimeLeft = hadError ? 0 : next.surviveGoldenTimeLeft;
+          let newGoldenCount = next.surviveGoldenCount;
+          if (isGoldenWord && !hadError) {
+            newGoldenMode = true;
+            newGoldenTimeLeft = 5;
+            newGoldenCount += 1;
+          }
+
+          const newWc = wc + 1; // wordsCompleted after this press
+          const nextGolden = isGoldenWord
+            ? newWc + 9 + Math.floor(Math.random() * 4)
+            : next.surviveNextGoldenWord;
+          const nextFreeze = isFreezeWord
+            ? newWc + 13 + Math.floor(Math.random() * 4)
+            : next.surviveNextFreezeWord;
+          const nextBomb = isBombWord
+            ? newWc + 18 + Math.floor(Math.random() * 4)
+            : next.surviveNextBombWord;
+
+          // Activate bomb countdown if the word sliding into slot 0 is the bomb word
+          const bombActivating = !isBombWord && newWc === next.surviveNextBombWord;
+
+          surviveUpdates = {
+            surviveScore: next.surviveScore + wordScore,
+            survivePerfectCombo: newCombo,
+            surviveComboMultiplier: newMult,
+            surviveMaxCombo: newMaxCombo,
+            surviveGoldenMode: newGoldenMode,
+            surviveGoldenTimeLeft: newGoldenTimeLeft,
+            surviveGoldenCount: newGoldenCount,
+            surviveNextGoldenWord: nextGolden,
+            surviveBombActive: bombActivating,
+            surviveBombCountdown: bombActivating ? 3 : 0,
+            surviveNextBombWord: nextBomb,
+            surviveNextFreezeWord: nextFreeze,
+            survivePenaltyAppliedThisWord: false,
+            timeLeft: newTimeLeft,
+            surviveLastWordScore: {
+              value: wordScore,
+              golden: inGoldenMode || goldenWordBonus,
+              id: (next.surviveLastWordScore?.id ?? 0) + 1,
+            },
+          };
+        }
+        // ─────────────────────────────────────────────────────────────
+
         // Word-count mode: finish when target reached
         if (next.gameMode === 'words' && next.wordsCompleted + 1 >= (next.wordTarget ?? Infinity)) {
-          return { ...next, ...shared };
+          return { ...next, ...shared, ...surviveUpdates };
         }
 
         // Fixed-word modes (quote/custom): advance window or finish
         if (next.fixedWords) {
           const nextOffset = next.fixedWordOffset + 1;
           if (nextOffset + 2 >= next.fixedWords.length) {
-            return { ...next, ...shared, fixedWordOffset: nextOffset };
+            return { ...next, ...shared, ...surviveUpdates, fixedWordOffset: nextOffset };
           }
           const fwWords = next.fixedWords.slice(nextOffset, nextOffset + 3);
           return {
             ...next,
             ...shared,
+            ...surviveUpdates,
             fixedWordOffset: nextOffset,
             showLineHint: false,
             line: { words: fwWords, charStates: fwWords.map(w => Array(w.length).fill('untyped') as CharState[]) },
@@ -557,6 +707,7 @@ export function useTypingEngine(requireCorrectWord = false) {
         return {
           ...next,
           ...shared,
+          ...surviveUpdates,
           ngramCoverageIdx: nextCoverageIdx,
           showLineHint: false,
           line: {
@@ -585,6 +736,37 @@ export function useTypingEngine(requireCorrectWord = false) {
 
       // Accumulate bigram/trigram stats on every keypress (including backspaced errors)
       const newNgramStats = updateNgramStats(word, currentChar, isCorrect, next.ngramStats, validDelta);
+
+      // Survive mode: wrong key triggers immediate effects
+      if (next.gameMode === 'survive' && !isCorrect) {
+        const bombExplosion = next.surviveBombActive;
+        // Bomb: -2s immediately. Normal mistake: -0.5s once per word. Not both.
+        const timePenalty = bombExplosion ? 2 : (!next.survivePenaltyAppliedThisWord ? 0.5 : 0);
+        const newTimeLeft = Math.max(0, next.timeLeft - timePenalty);
+        const nextBombWord = bombExplosion
+          ? next.wordsCompleted + 18 + Math.floor(Math.random() * 4)
+          : next.surviveNextBombWord;
+        return {
+          ...next,
+          spaceBlocked: false,
+          line: { ...line, charStates: newCharStates },
+          currentChar: currentChar + 1,
+          correctChars: next.correctChars,
+          totalChars: next.totalChars + 1,
+          errorCount: next.errorCount + 1,
+          currentWordHadError: true,
+          ngramStats: newNgramStats,
+          timeLeft: newTimeLeft,
+          survivePenaltyAppliedThisWord: true,
+          survivePerfectCombo: 0,
+          surviveComboMultiplier: 1,
+          surviveGoldenMode: false,
+          surviveGoldenTimeLeft: 0,
+          surviveBombActive: bombExplosion ? false : next.surviveBombActive,
+          surviveBombCountdown: bombExplosion ? 0 : next.surviveBombCountdown,
+          surviveNextBombWord: nextBombWord,
+        };
+      }
 
       return {
         ...next,
@@ -665,6 +847,15 @@ export function useTypingEngine(requireCorrectWord = false) {
     setState(buildInitialState('infinite', 'custom', { fixedWords: words }));
   }, [stopTicker]);
 
+  const startSurviveSession = useCallback(() => {
+    stopTicker();
+    secondCountRef.current = 0;
+    startTimeRef.current = null;
+    clearActiveNgrams();
+    setDuration(15);
+    setState(buildInitialState(15, 'survive'));
+  }, [stopTicker]);
+
   // Cleanup on unmount
   useEffect(() => () => stopTicker(), [stopTicker]);
 
@@ -683,6 +874,7 @@ export function useTypingEngine(requireCorrectWord = false) {
     startWordCountSession,
     startQuoteSession,
     startCustomSession,
+    startSurviveSession,
     endTest,
   };
 }

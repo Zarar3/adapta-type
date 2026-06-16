@@ -12,7 +12,7 @@ export interface DifficultyChange {
   level: number;
 }
 
-export type GameMode = 'timed' | 'words' | 'quote' | 'custom';
+export type GameMode = 'timed' | 'words' | 'quote' | 'custom' | 'survive';
 export type WordCountTarget = 10 | 25 | 50 | 100;
 
 export interface Quote {
@@ -35,6 +35,9 @@ export interface TestResults {
   ngramGraduated: Record<string, number>;
   difficultyHistory: DifficultyChange[];
   quote?: Quote;
+  surviveScore?: number;
+  surviveMaxCombo?: number;
+  surviveGoldenCount?: number;
 }
 
 export type TestState = 'idle' | 'running' | 'finished';

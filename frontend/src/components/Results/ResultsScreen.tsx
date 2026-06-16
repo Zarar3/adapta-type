@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { StatsBar } from './StatsBar';
 import { WpmGraph } from './WpmGraph';
 import { BigramHeatmap } from './BigramHeatmap';
-import { getSlowPatterns, getSessionCount, loadStrugglingPatterns } from '../../lib/ngramTracker';
+import { getSlowPatterns, getSessionCount, loadStrugglingPatterns, loadSurviveBest } from '../../lib/ngramTracker';
 import { shareCard, downloadShareCard } from '../../lib/export';
 import type { TestResults, TimedMode } from '../../types';
 
@@ -41,6 +41,18 @@ export function ResultsScreen({ results, focusedPattern, onRestart, onPracticePa
             <br />
             <span className="text-gray-600">— {results.quote.author}</span>
           </p>
+        </div>
+      )}
+
+      {results.surviveScore != null && (
+        <div className="text-center mb-6">
+          <p className="text-4xl font-mono font-bold text-yellow-400">{results.surviveScore}</p>
+          <p className="text-xs text-gray-500 mt-1 font-mono">
+            {results.surviveGoldenCount ?? 0} golden · {results.surviveMaxCombo ?? 0} max combo
+          </p>
+          {results.surviveScore > 0 && loadSurviveBest() === results.surviveScore && (
+            <p className="text-xs text-yellow-400 font-mono mt-1">new personal best!</p>
+          )}
         </div>
       )}
 

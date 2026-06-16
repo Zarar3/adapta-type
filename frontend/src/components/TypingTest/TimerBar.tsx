@@ -2,7 +2,7 @@ import type { TestState, TimedMode, GameMode, WordCountTarget } from '../../type
 
 const TIMED_MODES: TimedMode[] = [15, 30, 60, 120, 'infinite'];
 const WORD_TARGETS: WordCountTarget[] = [10, 25, 50, 100];
-const GAME_MODES: GameMode[] = ['timed', 'words', 'quote', 'custom'];
+const GAME_MODES: GameMode[] = ['timed', 'words', 'quote', 'custom', 'survive'];
 
 interface Props {
   testState: TestState;
@@ -33,6 +33,19 @@ export function TimerBar({
     }
     if (gameMode === 'quote' || gameMode === 'custom') {
       return null;
+    }
+    if (gameMode === 'survive') {
+      const urgent = timeLeft <= 5;
+      const warning = timeLeft <= 10;
+      return (
+        <div className="flex justify-center mb-6">
+          <span className={`text-3xl font-mono font-bold transition-colors ${
+            urgent ? 'text-red-400 animate-pulse' : warning ? 'text-orange-400' : 'text-yellow-400'
+          }`}>
+            {timeLeft}
+          </span>
+        </div>
+      );
     }
     return (
       <div className="flex justify-center mb-6">

@@ -1,8 +1,30 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { WordDisplay } from './WordDisplay';
+import type { WordFlags } from './WordDisplay';
+import { SurviveHUD } from './SurviveHUD';
 import { TimerBar } from './TimerBar';
 import { calcWpm, calcAccuracy } from '../../lib/statsCalculator';
+import { loadSurviveBest } from '../../lib/ngramTracker';
 import type { TestState, TimedMode, GameMode, WordCountTarget, Quote } from '../../types';
+
+function slot(nextAt: number, completed: number): number | null {
+  const off = nextAt - completed;
+  return off >= 0 && off <= 2 ? off : null;
+}
+
+export interface SurviveState {
+  score: number;
+  combo: number;
+  multiplier: number;
+  goldenMode: boolean;
+  goldenTimeLeft: number;
+  bombActive: boolean;
+  bombCountdown: number;
+  nextGoldenWord: number;
+  nextBombWord: number;
+  nextFreezeWord: number;
+  lastWordScore: { value: number; golden: boolean; id: number } | null;
+}
 
 interface LineData {
   words: string[];
@@ -40,6 +62,7 @@ interface Props {
   playWrong?: () => void;
   spaceBlocked?: boolean;
   isRaceMode?: boolean;
+  surviveState?: SurviveState | null;
 }
 
 const DIFFICULTY_LABELS = ['', 'easy', 'medium', 'hard', 'expert'];
@@ -49,7 +72,7 @@ export function TypingArea({
   line, currentWord, currentChar, ngramDisplayOrder, ngramStreaks, difficultyLevel, focusedPattern, showLineHint,
   correctChars, totalChars, onKeyDown, onChangeDuration, onChangeMode, onChangeWordTarget,
   onChangeCustomText, onStartCustom, onRestart, onEndTest, playCorrect, playWrong, spaceBlocked,
-  isRaceMode = false,
+  isRaceMode = false, surviveState = null,
 }: Props) {
   const focusPatterns = focusedPattern ? [] : ngramDisplayOrder;
 
@@ -94,6 +117,15 @@ export function TypingArea({
     : ((duration as number) - timeLeft) * 1000;
   const liveWpm = elapsed > 0 ? calcWpm(correctChars, elapsed) : 0;
   const liveAccuracy = calcAccuracy(correctChars, totalChars);
+
+  const wordFlags: WordFlags | null = (gameMode === 'survive' && surviveState) ? {
+    golden: slot(surviveState.nextGoldenWord, wordsCompleted),
+    bomb: surviveState.bombActive ? 0 : slot(surviveState.nextBombWord, wordsCompleted),
+    freeze: slot(surviveState.nextFreezeWord, wordsCompleted),
+    bombCountdown: surviveState.bombCountdown,
+  } : null;
+
+  const surviveBest = gameMode === 'survive' ? loadSurviveBest() : 0;
 
   return (
     <div
@@ -156,6 +188,23 @@ export function TypingArea({
         <p className="text-center text-gray-400 dark:text-gray-600 text-sm mb-4">click here or start typing</p>
       )}
 
+      {gameMode === 'survive' && testState === 'idle' && surviveBest > 0 && (
+        <p className="text-center text-xs font-mono text-gray-500 mb-3">
+          best: <span className="text-yellow-400">{surviveBest}</span> pts
+        </p>
+      )}
+
+      {gameMode === 'survive' && testState !== 'idle' && surviveState && (
+        <SurviveHUD
+          score={surviveState.score}
+          combo={surviveState.combo}
+          multiplier={surviveState.multiplier}
+          goldenMode={surviveState.goldenMode}
+          goldenTimeLeft={surviveState.goldenTimeLeft}
+          lastWordScore={surviveState.lastWordScore}
+        />
+      )}
+
       {testState === 'running' && (
         <>
           <div className="flex justify-center gap-6 mb-4 text-sm font-mono">
@@ -216,9 +265,13 @@ export function TypingArea({
           activeWord={currentWord}
           activeChar={currentChar}
           showHint={showLineHint}
+          wordFlags={wordFlags}
         />
         {spaceBlocked && (
           <p className="text-center text-xs font-mono text-red-400/70 mt-2">fix the highlighted word first</p>
+        )}
+        {surviveState?.bombActive && (
+          <p className="text-center text-xs font-mono text-red-400 mt-2 animate-pulse">type this word perfectly — any mistake detonates it</p>
         )}
       </div>
 

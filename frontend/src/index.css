@@ -47,6 +47,15 @@
   animation: flash-scale 0.35s ease-out;
 }
 
+@keyframes float-up {
+  0%   { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-32px); }
+}
+
+.animate-float-up {
+  animation: float-up 0.9s ease-out forwards;
+}
+
 body {
   margin: 0;
 }

@@ -272,3 +272,11 @@ export function resetAllTracking(): void {
 }
 
 export { ERROR_MIN, ERROR_RATE_MIN };
+
+const SURVIVE_BEST_KEY = 'adapta-type-survive-best';
+export function loadSurviveBest(): number {
+  try { return parseInt(localStorage.getItem(SURVIVE_BEST_KEY) ?? '0', 10) || 0; } catch { return 0; }
+}
+export function saveSurviveBest(score: number): void {
+  try { localStorage.setItem(SURVIVE_BEST_KEY, String(score)); } catch { /* silent */ }
+}

@@ -10,12 +10,14 @@ import { useSound } from './hooks/useSound';
 import { QUOTES } from './data/quotes';
 import { resetAllTracking } from './lib/ngramTracker';
 import type { TimedMode, GameMode, WordCountTarget } from './types';
+import type { SurviveState } from './components/TypingTest/TypingArea';
 
 export default function App() {
   const [view, setView] = useState<'typing' | 'wall' | 'race'>('typing');
   const [raceStarted, setRaceStarted] = useState(false);
   const { state, handleKeyDown, reset, changeDuration, startFocusedSession, endTest,
-          startWordCountSession, startQuoteSession, startCustomSession } = useTypingEngine(view === 'race' && raceStarted);
+          startWordCountSession, startQuoteSession, startCustomSession,
+          startSurviveSession } = useTypingEngine(view === 'race' && raceStarted);
   const { library, addFromSession, markCompleted, recordFocusedSession, clearLibrary } = usePatternLibrary();
   const { enabled: soundEnabled, toggle: toggleSound, playCorrect, playWrong } = useSound();
   const [gameMode, setGameMode] = useState<GameMode>('timed');
@@ -46,10 +48,12 @@ export default function App() {
       startQuoteSession(pickRandomQuote());
     } else if (m === 'words') {
       startWordCountSession(wordTarget);
+    } else if (m === 'survive') {
+      startSurviveSession();
     } else {
       reset();
     }
-  }, [reset, startQuoteSession, startWordCountSession, wordTarget, pickRandomQuote]);
+  }, [reset, startQuoteSession, startWordCountSession, startSurviveSession, wordTarget, pickRandomQuote]);
 
   const handleChangeWordTarget = useCallback((t: WordCountTarget) => {
     setWordTarget(t);
@@ -66,10 +70,12 @@ export default function App() {
       startQuoteSession(pickRandomQuote());
     } else if (gameMode === 'words') {
       startWordCountSession(wordTarget);
+    } else if (gameMode === 'survive') {
+      startSurviveSession();
     } else {
       reset();
     }
-  }, [gameMode, wordTarget, reset, startQuoteSession, startWordCountSession, pickRandomQuote]);
+  }, [gameMode, wordTarget, reset, startQuoteSession, startWordCountSession, startSurviveSession, pickRandomQuote]);
 
   // Read URL params on mount (?challenge= and ?room=)
   useEffect(() => {
@@ -112,6 +118,8 @@ export default function App() {
           startQuoteSession(pickRandomQuote());
         } else if (gameMode === 'words') {
           startWordCountSession(wordTarget);
+        } else if (gameMode === 'survive') {
+          startSurviveSession();
         } else {
           goHome();
         }
@@ -121,7 +129,7 @@ export default function App() {
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
-  }, [goHome, gameMode, wordTarget, startQuoteSession, startWordCountSession, pickRandomQuote]);
+  }, [goHome, gameMode, wordTarget, startQuoteSession, startWordCountSession, startSurviveSession, pickRandomQuote]);
 
   // On test finish: save patterns, mark focused session complete
   const prevTestStateRef = useRef(state.testState);
@@ -146,6 +154,20 @@ export default function App() {
     clearLibrary();
     reset();
   }, [clearLibrary, reset]);
+
+  const surviveState: SurviveState | null = gameMode === 'survive' ? {
+    score: state.surviveScore,
+    combo: state.survivePerfectCombo,
+    multiplier: state.surviveComboMultiplier,
+    goldenMode: state.surviveGoldenMode,
+    goldenTimeLeft: state.surviveGoldenTimeLeft,
+    bombActive: state.surviveBombActive,
+    bombCountdown: state.surviveBombCountdown,
+    nextGoldenWord: state.surviveNextGoldenWord,
+    nextBombWord: state.surviveNextBombWord,
+    nextFreezeWord: state.surviveNextFreezeWord,
+    lastWordScore: state.surviveLastWordScore,
+  } : null;
 
   return (
     <div className={`min-h-screen flex flex-col ${theme === 'dark' ? 'dark bg-gray-950 text-gray-100' : 'bg-gray-50 text-gray-900'}`}>
@@ -205,6 +227,7 @@ export default function App() {
                 playWrong={playWrong}
                 spaceBlocked={state.spaceBlocked}
                 isRaceMode
+                surviveState={surviveState}
               />
             )}
             {raceStarted && state.testState === 'finished' && state.results && (
@@ -255,6 +278,7 @@ export default function App() {
             onEndTest={endTest}
             playCorrect={playCorrect}
             playWrong={playWrong}
+            surviveState={surviveState}
           />
         )}
       </main>
