@@ -3,7 +3,7 @@ import { StatsBar } from './StatsBar';
 import { WpmGraph } from './WpmGraph';
 import { BigramHeatmap } from './BigramHeatmap';
 import { getSlowPatterns, getSessionCount, loadStrugglingPatterns } from '../../lib/ngramTracker';
-import { shareCard } from '../../lib/export';
+import { shareCard, downloadShareCard } from '../../lib/export';
 import type { TestResults, TimedMode } from '../../types';
 
 const MODES: TimedMode[] = [15, 30, 60, 120];
@@ -18,6 +18,10 @@ interface Props {
 export function ResultsScreen({ results, focusedPattern, onRestart, onPracticePattern }: Props) {
   const [pickingPattern, setPickingPattern] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+
+  const openShare = () => shareCard(results).then(url => { if (url) setShareUrl(url); });
+  const closeShare = () => { if (shareUrl) URL.revokeObjectURL(shareUrl); setShareUrl(null); };
   const sessionCount = getSessionCount();
   const MIN_SESSIONS = 3;
 
@@ -186,7 +190,7 @@ export function ResultsScreen({ results, focusedPattern, onRestart, onPracticePa
 
       <div className="flex justify-center gap-3">
         <button
-          onClick={() => shareCard(results)}
+          onClick={openShare}
           className="flex items-center gap-2 px-4 py-2.5 rounded bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors font-medium text-sm"
           title="share result"
         >
@@ -208,6 +212,38 @@ export function ResultsScreen({ results, focusedPattern, onRestart, onPracticePa
           restart
         </button>
       </div>
+
+      {shareUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={closeShare}
+        >
+          <div
+            className="flex flex-col items-center gap-4 max-w-3xl w-full"
+            onClick={e => e.stopPropagation()}
+          >
+            <img
+              src={shareUrl}
+              alt="share card preview"
+              className="w-full rounded-lg shadow-2xl"
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => downloadShareCard(shareUrl, results.wpm)}
+                className="px-4 py-2 rounded bg-yellow-400 text-gray-900 text-sm font-medium hover:bg-yellow-300 transition-colors"
+              >
+                download
+              </button>
+              <button
+                onClick={closeShare}
+                className="px-4 py-2 rounded bg-gray-700 text-gray-300 text-sm font-medium hover:bg-gray-600 transition-colors"
+              >
+                close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

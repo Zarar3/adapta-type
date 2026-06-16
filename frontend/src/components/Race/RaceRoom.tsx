@@ -133,9 +133,6 @@ export function RaceRoom({ roomId, wordTarget, onChangeWordTarget, onStart, word
     if (!botRaceStarted || bots.length === 0) return;
 
     const id = setInterval(() => {
-      // Collect newly finished labels outside the setBots updater
-      let newlyFinished: string[] = [];
-
       setBots(prev => {
         const updated = prev.map(bot => {
           if (bot.finished) return bot;
@@ -146,21 +143,26 @@ export function RaceRoom({ roomId, wordTarget, onChangeWordTarget, onStart, word
           const newFloat = bot.progressFloat + (effectiveWpm / 60) * (TICK_MS / 1000);
           const newProgress = Math.min(Math.floor(newFloat), wordTarget);
           const finished = newProgress >= wordTarget;
-          if (finished) newlyFinished.push(bot.label);
           return { ...bot, accuracy: newAcc, progressFloat: newFloat, progress: newProgress, finished };
         });
+
+        // Detect which bots newly finished this tick and update placements inside the updater
+        // so it runs synchronously with the state transition (not after an async flush)
+        const justFinished = updated
+          .filter((b, i) => b.finished && !prev[i].finished)
+          .map(b => b.label);
+        if (justFinished.length > 0) {
+          setPlacements(p => {
+            const next = [...p];
+            for (const label of justFinished) {
+              if (!next.includes(label)) next.push(label);
+            }
+            return next;
+          });
+        }
+
         return updated;
       });
-
-      if (newlyFinished.length > 0) {
-        setPlacements(p => {
-          const next = [...p];
-          for (const label of newlyFinished) {
-            if (!next.includes(label)) next.push(label);
-          }
-          return next;
-        });
-      }
     }, TICK_MS);
 
     return () => clearInterval(id);
