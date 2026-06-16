@@ -132,6 +132,10 @@ function buildInitialState(
   const slowNgramKeys = Object.fromEntries(slowPatterns.map(p => [p.ng, true as const]));
   const persistedNgrams = loadActiveNgrams();
   const mergedNgrams = { ...persistedNgrams, ...slowNgrams };
+  const allNgramKeys = Object.keys(mergedNgrams);
+  const initialDisplay = allNgramKeys.slice(0, 5);
+  const initialQueue = allNgramKeys.slice(5);
+  const displayNgramsForLine = Object.fromEntries(initialDisplay.map(ng => [ng, mergedNgrams[ng]]));
   return {
     testState: 'idle',
     duration,
@@ -144,7 +148,7 @@ function buildInitialState(
     timeLeft: duration === 'infinite' ? 0 : duration,
     line: opts.fixedWords
       ? makeLineData(opts.fixedWords.slice(0, 3))
-      : makeLineData(generateLine(mergedNgrams, 3, 1)),
+      : makeLineData(generateLine(displayNgramsForLine, 3, 1)),
     currentWord: 0,
     currentChar: 0,
     ngrams: mergedNgrams,
@@ -154,8 +158,8 @@ function buildInitialState(
     ngramAges: {},
     ngramCoverageIdx: 0,
     ngramStats: {},
-    ngramDisplayOrder: [],
-    ngramWaitQueue: [],
+    ngramDisplayOrder: initialDisplay,
+    ngramWaitQueue: initialQueue,
     recentWords: [],
     focusedPattern: null,
     difficultyLevel: 1,
@@ -371,9 +375,16 @@ export function useTypingEngine() {
           Object.entries(promoted).filter(([ng]) => hasSufficientCoverage(ng))
         );
 
-        // Update streaks, graduate mastered patterns, clear them from ngramStats
-        const { ngrams: updatedNgrams, ngramStreaks: updatedStreaks, ngramGraduated: updatedGraduated, ngramStats: updatedStats } =
-          updateStreaks(word, wordStates, ngramsAfterPromotion, next.ngramStreaks, next.ngramGraduated, next.ngramStats);
+        // Only track streaks for patterns in active display slots; queue patterns wait silently
+        const displaySlotNgrams = Object.fromEntries(
+          Object.entries(ngramsAfterPromotion).filter(([ng]) => displayOrder.includes(ng))
+        );
+        const queueOnlyNgrams = Object.fromEntries(
+          Object.entries(ngramsAfterPromotion).filter(([ng]) => !displayOrder.includes(ng))
+        );
+        const { ngrams: updatedDisplayNgrams, ngramStreaks: updatedStreaks, ngramGraduated: updatedGraduated, ngramStats: updatedStats } =
+          updateStreaks(word, wordStates, displaySlotNgrams, next.ngramStreaks, next.ngramGraduated, next.ngramStats);
+        const updatedNgrams = { ...queueOnlyNgrams, ...updatedDisplayNgrams };
 
         const elapsedT = next.duration === 'infinite'
           ? next.timeLeft
@@ -526,7 +537,15 @@ export function useTypingEngine() {
           );
           nextCoverageIdx = (nextCoverageIdx + 1) % displayOrder.length;
         } else {
-          nextWord = generateWord(updatedNgrams, newDifficulty, excludeList, 0.9);
+          const activeNgrams = Object.fromEntries(
+            Object.entries(updatedNgrams).filter(([ng]) => displayOrder.includes(ng))
+          );
+          nextWord = generateWord(
+            Object.keys(activeNgrams).length > 0 ? activeNgrams : updatedNgrams,
+            newDifficulty,
+            excludeList,
+            0.9,
+          );
         }
 
         const newWords = [w1, w2, nextWord];
