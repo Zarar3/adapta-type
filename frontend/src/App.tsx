@@ -8,6 +8,7 @@ import { useTypingEngine } from './hooks/useTypingEngine';
 import { usePatternLibrary } from './hooks/usePatternLibrary';
 import { useSound } from './hooks/useSound';
 import { QUOTES } from './data/quotes';
+import { resetAllTracking } from './lib/ngramTracker';
 import type { TimedMode, GameMode, WordCountTarget } from './types';
 
 export default function App() {
@@ -15,7 +16,7 @@ export default function App() {
   const [raceStarted, setRaceStarted] = useState(false);
   const { state, handleKeyDown, reset, changeDuration, startFocusedSession, endTest,
           startWordCountSession, startQuoteSession, startCustomSession } = useTypingEngine(view === 'race' && raceStarted);
-  const { library, addFromSession, markCompleted, recordFocusedSession } = usePatternLibrary();
+  const { library, addFromSession, markCompleted, recordFocusedSession, clearLibrary } = usePatternLibrary();
   const { enabled: soundEnabled, toggle: toggleSound, playCorrect, playWrong } = useSound();
   const [gameMode, setGameMode] = useState<GameMode>('timed');
   const [wordTarget, setWordTarget] = useState<WordCountTarget>(25);
@@ -140,6 +141,12 @@ export default function App() {
     setView('typing');
   }, [startFocusedSession]);
 
+  const handleReset = useCallback(() => {
+    resetAllTracking();
+    clearLibrary();
+    reset();
+  }, [clearLibrary, reset]);
+
   return (
     <div className={`min-h-screen flex flex-col ${theme === 'dark' ? 'dark bg-gray-950 text-gray-100' : 'bg-gray-50 text-gray-900'}`}>
       <Header
@@ -210,7 +217,7 @@ export default function App() {
             )}
           </div>
         ) : view === 'wall' ? (
-          <PatternWall library={library} onPractice={handlePracticePattern} />
+          <PatternWall library={library} onPractice={handlePracticePattern} onReset={handleReset} />
         ) : state.testState === 'finished' && state.results ? (
           <ResultsScreen
             results={state.results}

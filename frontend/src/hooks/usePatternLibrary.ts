@@ -75,5 +75,10 @@ export function usePatternLibrary() {
     });
   }, []);
 
-  return { library, addFromSession, markCompleted, recordFocusedSession };
+  const clearLibrary = useCallback(() => {
+    localStorage.removeItem(STORAGE_KEY);
+    setLibrary({});
+  }, []);
+
+  return { library, addFromSession, markCompleted, recordFocusedSession, clearLibrary };
 }

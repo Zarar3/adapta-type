@@ -1,5 +1,59 @@
 # Changelog
 
+## Session — 2026-06-15 (part 2)
+
+### Race Mode UX Overhaul
+
+#### Word count selection
+**File:** `frontend/src/components/Race/RaceRoom.tsx`
+
+Added a word count picker (20 / 30 / 40 / 50) to the race selection screen, shown above the bots/players buttons. `WORD_TARGET = 50` (hardcoded constant) was removed and replaced with a `wordTarget: number` prop passed down from App. `onChangeWordTarget` callback lets App own the state (default 30). `startWordCountSession` in `useTypingEngine.ts` now accepts `number` instead of `WordCountTarget` so any target value works without a type cast. Bot simulation effect also updated to use the prop and lists it in deps.
+
+#### Clean race mode UI
+**File:** `frontend/src/components/TypingTest/TypingArea.tsx`
+
+Added `isRaceMode?: boolean` prop. When true:
+- `TimerBar` is hidden (progress is already visible in the RaceRoom HUD)
+- N-gram "focusing on" chips are hidden
+- Difficulty flash label (easy / medium / hard / expert) is hidden
+- Idle "click here or start typing" hint is hidden
+- Outer container narrows from `max-w-5xl` to `max-w-2xl` to keep the typing area tight and centered
+
+Live WPM/accuracy and the "fix the highlighted word first" message remain visible. `isRaceMode` is passed from the race rendering branch in `App.tsx`.
+
+#### requireCorrectWord confirmed race-only
+No code change. `useTypingEngine(view === 'race' && raceStarted)` already passes `requireCorrectWord=true` only during an active race. All other modes are unaffected.
+
+---
+
+### WPM Graph Smoothing
+**File:** `frontend/src/components/Results/WpmGraph.tsx`
+
+Added `smoothPoints()` — a 3-point moving average applied to `wpmHistory` before rendering. Each data point's `wpm` and `raw` values are averaged with their immediate neighbours. Error bar counts are left unsmoothed. Fixes the jagged/erratic appearance of the WPM line in race mode, where forced word corrections cause bursts of low then high correct-char counts per second.
+
+---
+
+### Share Card Preview Modal
+**Files:** `frontend/src/lib/export.ts`, `frontend/src/components/Results/ResultsScreen.tsx`
+
+Previously clicking "share" immediately triggered a native share sheet or PNG download. Now:
+
+- `shareCard(results)` returns `Promise<string>` (a blob object URL) instead of being void
+- `downloadShareCard(url, wpm)` is a new exported helper for the explicit download action
+- `ResultsScreen` holds `shareUrl` state; clicking "share" generates the card and sets the URL
+- A fullscreen overlay renders with the 1200×630 image scaled to fit, a "download" button, and a "close" button. Clicking the backdrop also closes it. The object URL is revoked on close to free memory.
+
+---
+
+### Bot Race 3rd/4th Placement Bug Fix
+**File:** `frontend/src/components/Race/RaceRoom.tsx`
+
+3rd and 4th place bot labels were never showing as placement boxes — they kept rendering as progress bars even after reaching 30/30. Root cause: `newlyFinished` was populated inside the `setBots` updater function (which React runs asynchronously), but `setPlacements` was called right after in the same synchronous interval tick — before the updater had executed. So the `newlyFinished` array was always empty at the point of the `setPlacements` call, and the placement was permanently missed (on subsequent ticks the bot's `finished` flag is already `true` so it early-returns and never pushes again).
+
+Fix: removed the external `newlyFinished` variable. Inside the `setBots` updater, the newly-finished bots are now detected by diffing `prev` vs `updated` (`b.finished && !prev[i].finished`), and `setPlacements` is called from inside the updater. Both state updates now happen in the same React flush.
+
+---
+
 ## Session — 2026-06-15
 
 ### Bug Fixes

@@ -261,4 +261,14 @@ export function clearActiveNgrams(): void {
   try { localStorage.removeItem(ACTIVE_NGRAMS_KEY); } catch { /* silent */ }
 }
 
+export function resetAllTracking(): void {
+  try {
+    localStorage.removeItem('adapta-type-timing');
+    localStorage.removeItem(SESSION_COUNT_KEY);
+    localStorage.removeItem(FLAGGED_KEY);
+    localStorage.removeItem(STRUGGLING_KEY);
+    localStorage.removeItem(ACTIVE_NGRAMS_KEY);
+  } catch { /* silent */ }
+}
+
 export { ERROR_MIN, ERROR_RATE_MIN };

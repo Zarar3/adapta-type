@@ -6,6 +6,7 @@ import type { TimedMode } from '../../types';
 interface Props {
   library: Record<string, PatternRecord>;
   onPractice: (pattern: string, duration: TimedMode) => void;
+  onReset: () => void;
 }
 
 const MODES: TimedMode[] = [15, 30, 60, 120];
@@ -100,8 +101,9 @@ function PatternCard({ record, isOpen, isStruggling, onOpen, onClose, onPractice
   );
 }
 
-export function PatternWall({ library, onPractice }: Props) {
+export function PatternWall({ library, onPractice, onReset }: Props) {
   const [activePattern, setActivePattern] = useState<string | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
   const strugglingMap = loadStrugglingPatterns();
 
   const entries = Object.values(library).sort((a, b) => b.totalErrors - a.totalErrors);
@@ -116,6 +118,37 @@ export function PatternWall({ library, onPractice }: Props) {
       </div>
     );
   }
+
+  const resetButton = confirmReset ? (
+    <div className="flex flex-col items-center gap-3 mt-12 pt-8 border-t border-gray-200 dark:border-gray-800">
+      <p className="text-sm text-gray-500 dark:text-gray-400 font-mono">
+        this will erase all ngram timing, slow patterns, struggling data, and your pattern wall — are you sure?
+      </p>
+      <div className="flex gap-3">
+        <button
+          onClick={() => { onReset(); setConfirmReset(false); }}
+          className="px-5 py-2 rounded bg-red-600 text-white text-sm font-medium hover:bg-red-500 transition-colors"
+        >
+          yes, reset everything
+        </button>
+        <button
+          onClick={() => setConfirmReset(false)}
+          className="px-5 py-2 rounded bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
+        >
+          cancel
+        </button>
+      </div>
+    </div>
+  ) : (
+    <div className="flex justify-center mt-12 pt-8 border-t border-gray-200 dark:border-gray-800">
+      <button
+        onClick={() => setConfirmReset(true)}
+        className="px-8 py-3 rounded-lg bg-red-600/15 border border-red-500/30 text-red-500 text-base font-semibold hover:bg-red-600/25 hover:border-red-500/60 hover:text-red-400 transition-all"
+      >
+        reset all data
+      </button>
+    </div>
+  );
 
   const pending = entries.filter(e => !e.completed);
   const done = entries.filter(e => e.completed);
@@ -169,6 +202,8 @@ export function PatternWall({ library, onPractice }: Props) {
           )}
         </section>
       </div>
+
+      {resetButton}
     </div>
   );
 }
