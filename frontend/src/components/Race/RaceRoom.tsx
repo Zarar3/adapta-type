@@ -252,30 +252,28 @@ export function RaceRoom({ roomId, onStart, wordsCompleted, currentWpm, isFinish
           <button onClick={onLeave} className="text-xs text-gray-600 dark:text-gray-700 hover:text-gray-400 font-mono transition-colors">leave</button>
         </div>
 
-        {placements.length > 0 && (
-          <div className="bg-yellow-400/10 border border-yellow-400/20 rounded-lg px-4 py-3 mb-4">
-            <div className="flex gap-4 flex-wrap">
-              {placements.map((label, i) => (
-                <span key={label} className={`font-mono text-sm ${i === 0 ? 'text-yellow-400 font-bold' : 'text-gray-500 dark:text-gray-500'}`}>
-                  {ordinal(i + 1)} {label}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
         <div className="space-y-3 mb-6">
           {allEntries.map(({ id, label, wpm, progress, finished, isMe, accuracy }) => {
             const placement = placements.indexOf(label);
+            if (finished && placement !== -1) {
+              return (
+                <div
+                  key={id}
+                  className={`flex items-center justify-between px-4 py-2.5 rounded-lg border font-mono text-xs ${
+                    isMe
+                      ? 'border-yellow-400/40 bg-yellow-400/8 text-yellow-400'
+                      : 'border-gray-700/40 dark:bg-gray-800/40 text-gray-500 dark:text-gray-500'
+                  }`}
+                >
+                  <span className="font-bold">{ordinal(placement + 1)} — {label}</span>
+                  <span className="text-gray-600 dark:text-gray-600">{wpm > 0 ? `${wpm} wpm` : 'finished'}</span>
+                </div>
+              );
+            }
             return (
               <div key={id}>
                 <div className="flex justify-between text-xs font-mono mb-1">
-                  <span className={isMe ? 'text-yellow-400' : 'text-gray-500 dark:text-gray-600'}>
-                    {label}
-                    {finished && placement !== -1 && (
-                      <span className="ml-1.5 text-gray-600 dark:text-gray-700">{ordinal(placement + 1)}</span>
-                    )}
-                  </span>
+                  <span className={isMe ? 'text-yellow-400' : 'text-gray-500 dark:text-gray-600'}>{label}</span>
                   <span className="text-gray-600 dark:text-gray-700">
                     {wpm > 0 ? `${wpm} wpm · ` : ''}{accuracy !== null ? `${accuracy}% acc · ` : ''}{progress}/{WORD_TARGET}
                   </span>
@@ -335,35 +333,35 @@ export function RaceRoom({ roomId, onStart, wordsCompleted, currentWpm, isFinish
         <p className="text-yellow-400/60 text-sm font-mono mb-4">connecting...</p>
       )}
 
-      {mpPlacements.length > 0 && (
-        <div className="bg-yellow-400/10 border border-yellow-400/20 rounded-lg px-4 py-3 mb-4">
-          <div className="flex gap-4 flex-wrap">
-            {mpPlacements.map((id, i) => (
-              <span key={id} className={`font-mono text-sm ${i === 0 ? 'text-yellow-400 font-bold' : 'text-gray-500 dark:text-gray-500'}`}>
-                {ordinal(i + 1)} {id === myId ? 'you' : `player ${id.slice(0, 4)}`}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
       <div className="space-y-3 mb-8">
         {playerList.map(([id, p]) => {
+          const label = id === myId ? 'you' : `player ${id.slice(0, 4)}`;
+          const isMe = id === myId;
           const placement = mpPlacements.indexOf(id);
+          if (p.finished && placement !== -1) {
+            return (
+              <div
+                key={id}
+                className={`flex items-center justify-between px-4 py-2.5 rounded-lg border font-mono text-xs ${
+                  isMe
+                    ? 'border-yellow-400/40 bg-yellow-400/8 text-yellow-400'
+                    : 'border-gray-700/40 dark:bg-gray-800/40 text-gray-500 dark:text-gray-500'
+                }`}
+              >
+                <span className="font-bold">{ordinal(placement + 1)} — {label}</span>
+                <span className="text-gray-600 dark:text-gray-600">{p.wpm > 0 ? `${p.wpm} wpm` : 'finished'}</span>
+              </div>
+            );
+          }
           return (
             <div key={id}>
               <div className="flex justify-between text-xs font-mono mb-1">
-                <span className={id === myId ? 'text-yellow-400' : 'text-gray-500 dark:text-gray-600'}>
-                  {id === myId ? 'you' : `player ${id.slice(0, 4)}`}
-                  {p.finished && placement !== -1 && (
-                    <span className="ml-1.5 text-gray-600 dark:text-gray-700">{ordinal(placement + 1)}</span>
-                  )}
-                </span>
+                <span className={isMe ? 'text-yellow-400' : 'text-gray-500 dark:text-gray-600'}>{label}</span>
                 <span className="text-gray-600 dark:text-gray-700">{p.wpm} wpm · {p.progress}/{WORD_TARGET}</span>
               </div>
               <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2">
                 <div
-                  className={`h-2 rounded-full transition-all ${id === myId ? 'bg-yellow-400' : 'bg-gray-500 dark:bg-gray-600'}`}
+                  className={`h-2 rounded-full transition-all ${isMe ? 'bg-yellow-400' : 'bg-gray-500 dark:bg-gray-600'}`}
                   style={{ width: `${Math.min((p.progress / WORD_TARGET) * 100, 100)}%` }}
                 />
               </div>

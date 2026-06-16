@@ -11,16 +11,16 @@ import { QUOTES } from './data/quotes';
 import type { TimedMode, GameMode, WordCountTarget } from './types';
 
 export default function App() {
+  const [view, setView] = useState<'typing' | 'wall' | 'race'>('typing');
+  const [raceStarted, setRaceStarted] = useState(false);
   const { state, handleKeyDown, reset, changeDuration, startFocusedSession, endTest,
-          startWordCountSession, startQuoteSession, startCustomSession } = useTypingEngine();
+          startWordCountSession, startQuoteSession, startCustomSession } = useTypingEngine(view === 'race' && raceStarted);
   const { library, addFromSession, markCompleted, recordFocusedSession } = usePatternLibrary();
   const { enabled: soundEnabled, toggle: toggleSound, playCorrect, playWrong } = useSound();
-  const [view, setView] = useState<'typing' | 'wall' | 'race'>('typing');
   const [gameMode, setGameMode] = useState<GameMode>('timed');
   const [wordTarget, setWordTarget] = useState<WordCountTarget>(25);
   const [customText, setCustomText] = useState('');
   const [raceRoomId, setRaceRoomId] = useState<string | null>(null);
-  const [raceStarted, setRaceStarted] = useState(false);
 
   const [theme, setTheme] = useState<'dark' | 'light'>(() =>
     (localStorage.getItem('adapta-type-theme') as 'dark' | 'light') ?? 'dark'

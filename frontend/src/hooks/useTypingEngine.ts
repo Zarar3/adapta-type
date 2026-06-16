@@ -179,7 +179,10 @@ function buildInitialState(
   };
 }
 
-export function useTypingEngine() {
+export function useTypingEngine(requireCorrectWord = false) {
+  const requireCorrectWordRef = useRef(requireCorrectWord);
+  useEffect(() => { requireCorrectWordRef.current = requireCorrectWord; }, [requireCorrectWord]);
+
   const [duration, setDuration] = useState<TimedMode>(30);
   const [state, setState] = useState<EngineState>(() => buildInitialState(30));
 
@@ -353,7 +356,7 @@ export function useTypingEngine() {
         return { ...next, spaceBlocked: false };
       }
 
-      if (e.key === ' ' && currentChar === word.length && line.charStates[currentWord].every(s => s === 'correct')) {
+      if (e.key === ' ' && currentChar === word.length && (!requireCorrectWordRef.current || line.charStates[currentWord].every(s => s === 'correct'))) {
         // Reset timing ref between words to avoid measuring pause time
         lastKeypressTimeRef.current = null;
         const wordStates = line.charStates[currentWord];
@@ -565,9 +568,9 @@ export function useTypingEngine() {
         };
       }
 
-      // Space pressed but word has errors or incomplete — block and optionally hint
+      // Space pressed but blocked (race mode only): word complete but has errors
       if (e.key === ' ') {
-        if (currentChar === word.length) return { ...next, spaceBlocked: true };
+        if (requireCorrectWordRef.current && currentChar === word.length) return { ...next, spaceBlocked: true };
         return next;
       }
 
