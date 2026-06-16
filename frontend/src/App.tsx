@@ -174,6 +174,7 @@ export default function App() {
     lastWordScore: state.surviveLastWordScore,
     currentWordHadError: state.currentWordHadError,
     liveWpm: state.wpmHistory.length > 0 ? state.wpmHistory[state.wpmHistory.length - 1].wpm : 0,
+    freezeLeft: state.surviveFreezeLeft,
   } : null;
 
   return (

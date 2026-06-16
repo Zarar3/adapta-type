@@ -3,6 +3,7 @@ import { generateLine, generateWord, generateWordContaining, hasSufficientCovera
 import { updateNgramStats, promoteNgrams, saveTimingToStorage, loadStoredTiming, getSlowPatterns, getFlaggedSlowKeys, incrementSessionCount, updateStrugglingPatterns, markPatternPracticed, saveActiveNgrams, loadActiveNgrams, clearActiveNgrams, loadSurviveBest, saveSurviveBest } from '../lib/ngramTracker';
 import type { NgramStats, StoredTiming } from '../lib/ngramTracker';
 import { calcWpm, calcRawWpm, calcAccuracy } from '../lib/statsCalculator';
+import { accuracyScoreMult, wpmScoreMult, difficultyScoreMult } from '../lib/surviveScoring';
 import type { CharState, TestState, TimedMode, WpmDataPoint, TestResults, DifficultyChange, GameMode, Quote } from '../types';
 
 function shuffleInitialSurviveOffsets(): { golden: number; freeze: number; bomb: number } {
@@ -28,23 +29,6 @@ function rescheduleSpecial(newWc: number, baseMin: number, jitter: number, other
     return futureOthers[Math.floor(Math.random() * futureOthers.length)];
   }
   return newWc + baseMin + Math.floor(Math.random() * jitter);
-}
-
-// Survive score multipliers that reward clean, fast typing.
-function accuracyScoreMult(acc: number): number {
-  if (acc >= 95) return 1.5;
-  if (acc >= 90) return 1.25;
-  if (acc >= 85) return 1.1;
-  return 1;
-}
-function wpmScoreMult(wpm: number): number {
-  if (wpm >= 120) return 2.5;
-  if (wpm >= 100) return 2;
-  if (wpm >= 80) return 1.5;
-  if (wpm >= 60) return 1.25;
-  if (wpm >= 50) return 1.15;
-  if (wpm >= 40) return 1.1;
-  return 1;
 }
 
 function streakThreshold(duration: TimedMode): number {
@@ -110,6 +94,8 @@ interface EngineState {
   surviveBombCountdown: number;
   surviveNextBombWord: number;
   surviveNextFreezeWord: number;
+  surviveFreezeLeft: number;          // seconds the survival countdown is frozen (freeze word reward)
+  surviveFreezeBuffer: number;        // net time changes earned while frozen, applied on thaw
   survivePenaltyAppliedThisWord: boolean;
   surviveLastWordScore: { value: number; golden: boolean; id: number } | null;
 }
@@ -246,6 +232,8 @@ function buildInitialState(
     surviveBombCountdown: 0,
     surviveNextBombWord: surviveOffsets?.bomb ?? 0,
     surviveNextFreezeWord: surviveOffsets?.freeze ?? 0,
+    surviveFreezeLeft: 0,
+    surviveFreezeBuffer: 0,
     survivePenaltyAppliedThisWord: false,
     surviveLastWordScore: null,
   };
@@ -367,29 +355,51 @@ export function useTypingEngine(requireCorrectWord = false) {
         // Survive: timeLeft is dynamic (bonus/penalty modify it directly); just decrement by 1
         setState(prev => {
           if (prev.testState !== 'running') return prev;
-          const newTimeLeft = Math.max(0, prev.timeLeft - 1);
+          const frozen = prev.surviveFreezeLeft > 0;
           const updates: Partial<EngineState> = {
-            timeLeft: newTimeLeft,
             wpmHistory: [...prev.wpmHistory, newPoint],
           };
-          // Golden mode countdown
+
+          // Survival countdown: paused while frozen; the freeze counter ticks instead.
+          let timeLeft = prev.timeLeft;
+          let freezeBuffer = prev.surviveFreezeBuffer;
+          let freezeLeft = prev.surviveFreezeLeft;
+          if (frozen) {
+            freezeLeft = prev.surviveFreezeLeft - 1;
+          } else {
+            timeLeft = Math.max(0, timeLeft - 1);
+          }
+
+          // Golden mode countdown — keeps running even while frozen
           if (prev.surviveGoldenMode) {
             const gt = prev.surviveGoldenTimeLeft - 1;
             updates.surviveGoldenMode = gt > 0;
             updates.surviveGoldenTimeLeft = Math.max(0, gt);
           }
-          // Bomb countdown
+          // Bomb countdown — keeps running even while frozen
           if (prev.surviveBombActive && prev.surviveBombCountdown > 0) {
             const bt = prev.surviveBombCountdown - 1;
             if (bt <= 0) {
               updates.surviveBombActive = false;
               updates.surviveBombCountdown = 0;
-              updates.timeLeft = Math.max(0, newTimeLeft - 2);
               updates.surviveNextBombWord = prev.wordsCompleted + 7 + Math.floor(Math.random() * 4);
+              // Explosion penalty buffers during a freeze, applies immediately otherwise.
+              if (frozen) freezeBuffer -= 2;
+              else timeLeft = Math.max(0, timeLeft - 2);
             } else {
               updates.surviveBombCountdown = bt;
             }
           }
+
+          // Thaw: apply the net time changes accumulated during the freeze.
+          if (frozen && freezeLeft === 0) {
+            timeLeft = Math.min(90, Math.max(0, timeLeft + freezeBuffer));
+            freezeBuffer = 0;
+          }
+
+          updates.timeLeft = timeLeft;
+          updates.surviveFreezeLeft = freezeLeft;
+          updates.surviveFreezeBuffer = freezeBuffer;
           return { ...prev, ...updates };
         });
         return;
@@ -628,7 +638,7 @@ export function useTypingEngine(requireCorrectWord = false) {
           const elapsedMs = startTimeRef.current ? Date.now() - startTimeRef.current : 0;
           const liveWpm = elapsedMs > 1000 ? calcWpm(next.correctChars, elapsedMs) : 0;
           const liveAcc = calcAccuracy(next.correctChars, next.totalChars);
-          const perfMult = accuracyScoreMult(liveAcc) * wpmScoreMult(liveWpm);
+          const perfMult = accuracyScoreMult(liveAcc) * wpmScoreMult(liveWpm) * difficultyScoreMult(next.difficultyLevel);
           const scoreMult = (inGoldenMode || goldenWordBonus ? 2 : 1) * next.surviveComboMultiplier * perfMult;
           const wordScore = hadError ? 0 : Math.round(base * scoreMult);
 
@@ -636,11 +646,15 @@ export function useTypingEngine(requireCorrectWord = false) {
           const newMult  = hadError ? 1 : Math.min(2, 1 + Math.floor(newCombo / 5) * 0.5);
           const newMaxCombo = Math.max(next.surviveMaxCombo, newCombo);
 
+          const frozen = next.surviveFreezeLeft > 0;
           let timeAdjust = 0;
           if (!hadError && newCombo === 3) timeAdjust += 2;      // unlock streak: +2s
           else if (!hadError && newCombo > 3) timeAdjust += 1;   // each further perfect word: +1s
-          if (isFreezeWord && !hadError) timeAdjust += 2;
-          const newTimeLeft = Math.min(90, next.timeLeft + timeAdjust);
+          // While frozen, time bonuses buffer and apply on thaw; otherwise apply now.
+          const newTimeLeft = frozen ? next.timeLeft : Math.min(90, next.timeLeft + timeAdjust);
+          const newFreezeBuffer = frozen ? next.surviveFreezeBuffer + timeAdjust : next.surviveFreezeBuffer;
+          // Freeze word: pause the countdown for 2s (handled in the ticker).
+          const newFreezeLeft = (isFreezeWord && !hadError) ? 2 : next.surviveFreezeLeft;
 
           let newGoldenMode = next.surviveGoldenMode;
           let newGoldenTimeLeft = next.surviveGoldenTimeLeft;
@@ -680,6 +694,8 @@ export function useTypingEngine(requireCorrectWord = false) {
             surviveBombCountdown: bombActivating ? 3 : 0,
             surviveNextBombWord: nextBomb,
             surviveNextFreezeWord: nextFreeze,
+            surviveFreezeLeft: newFreezeLeft,
+            surviveFreezeBuffer: newFreezeBuffer,
             survivePenaltyAppliedThisWord: false,
             timeLeft: newTimeLeft,
             surviveLastWordScore: wordScore > 0 ? {
@@ -797,7 +813,10 @@ export function useTypingEngine(requireCorrectWord = false) {
         const bombExplosion = next.surviveBombActive;
         // Bomb: -2s immediately. Normal mistake: -0.5s once per word. Not both.
         const timePenalty = bombExplosion ? 2 : (!next.survivePenaltyAppliedThisWord ? 0.5 : 0);
-        const newTimeLeft = Math.max(0, next.timeLeft - timePenalty);
+        // While frozen the timer is paused — penalties buffer and apply on thaw.
+        const frozen = next.surviveFreezeLeft > 0;
+        const newTimeLeft = frozen ? next.timeLeft : Math.max(0, next.timeLeft - timePenalty);
+        const newFreezeBuffer = frozen ? next.surviveFreezeBuffer - timePenalty : next.surviveFreezeBuffer;
         const nextBombWord = bombExplosion
           ? next.wordsCompleted + 7 + Math.floor(Math.random() * 4)
           : next.surviveNextBombWord;
@@ -812,6 +831,7 @@ export function useTypingEngine(requireCorrectWord = false) {
           currentWordHadError: true,
           ngramStats: newNgramStats,
           timeLeft: newTimeLeft,
+          surviveFreezeBuffer: newFreezeBuffer,
           survivePenaltyAppliedThisWord: true,
           survivePerfectCombo: 0,
           surviveComboMultiplier: 1,

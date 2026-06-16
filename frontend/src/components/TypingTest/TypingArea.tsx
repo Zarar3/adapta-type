@@ -5,6 +5,7 @@ import { SurviveHUD } from './SurviveHUD';
 import { TimerBar } from './TimerBar';
 import { calcWpm, calcAccuracy } from '../../lib/statsCalculator';
 import { loadSurviveBest } from '../../lib/ngramTracker';
+import { accuracyScoreMult, wpmScoreMult, difficultyScoreMult } from '../../lib/surviveScoring';
 import type { TestState, TimedMode, GameMode, WordCountTarget, Quote } from '../../types';
 
 function slot(nextAt: number, completed: number): number | null {
@@ -26,6 +27,7 @@ export interface SurviveState {
   lastWordScore: { value: number; golden: boolean; id: number } | null;
   currentWordHadError: boolean;
   liveWpm: number;
+  freezeLeft: number;
 }
 
 interface LineData {
@@ -224,6 +226,7 @@ export function TypingArea({
           gameMode={gameMode}
           wordTarget={wordTarget}
           wordsCompleted={wordsCompleted}
+          frozen={(surviveState?.freezeLeft ?? 0) > 0}
           onChangeDuration={onChangeDuration}
           onChangeMode={onChangeMode}
           onChangeWordTarget={onChangeWordTarget}
@@ -283,9 +286,13 @@ export function TypingArea({
               <p><span className="text-red-400">any typo</span> → −0.5s · resets streak &amp; multiplier</p>
               <p><span className="text-yellow-300">✦ golden word</span> → correct = 2× score for 5s</p>
               <p><span className="text-red-400 font-bold">bomb word</span> → typo = −2s explosion</p>
-              <p><span className="text-sky-300">freeze word</span> → correct = +2s bonus</p>
+              <p><span className="text-sky-300">❄ freeze word</span> → correct = freezes the timer for 2s (it can't drop) — the clock turns icy blue</p>
               <p><span className="text-yellow-400">5 clean words</span> → multiplier up (max 2×)</p>
               <p><span className="text-fuchsia-400">combo word</span> → stacks effects (e.g. ✦❄ gold + freeze)</p>
+              <p className="text-gray-500 pt-1 border-t border-gray-800 mt-1">score multipliers — they stack:</p>
+              <p><span className="text-sky-300">wpm</span> → 40→1.1× · 50→1.15× · 60→1.25× · 80→1.5× · 100→2× · 120→2.5×</p>
+              <p><span className="text-green-400">acc</span> → 85%→1.1× · 90%→1.25× · 95%+→1.5×</p>
+              <p><span className="text-orange-400">difficulty</span> → easy 1× · medium 1.1× · hard 1.25× · expert 1.5×</p>
               <p className="text-gray-600 pt-1">special words lose their highlight if you typo them</p>
             </div>
           )}
@@ -299,6 +306,10 @@ export function TypingArea({
           multiplier={surviveState.multiplier}
           goldenMode={surviveState.goldenMode}
           goldenTimeLeft={surviveState.goldenTimeLeft}
+          accMult={accuracyScoreMult(liveAccuracy)}
+          wpmMult={wpmScoreMult(liveWpm)}
+          diffMult={difficultyScoreMult(difficultyLevel)}
+          freezeLeft={surviveState.freezeLeft}
         />
       )}
 

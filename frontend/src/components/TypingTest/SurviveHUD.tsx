@@ -1,12 +1,45 @@
+import { useEffect, useRef, useState } from 'react';
+
 interface Props {
   score: number;
   combo: number;
   multiplier: number;
   goldenMode: boolean;
   goldenTimeLeft: number;
+  accMult: number;
+  wpmMult: number;
+  diffMult: number;
+  freezeLeft: number;
 }
 
-export function SurviveHUD({ score, combo, multiplier, goldenMode, goldenTimeLeft }: Props) {
+const TONE_COLOR = { green: 'text-green-400', sky: 'text-sky-300', amber: 'text-orange-400' };
+
+// A live multiplier badge that dims at 1× and brightens + flashes when its tier rises.
+function MultBadge({ label, mult, tone }: { label: string; mult: number; tone: keyof typeof TONE_COLOR }) {
+  const [flashKey, setFlashKey] = useState(0);
+  const prev = useRef(mult);
+  useEffect(() => {
+    if (mult > prev.current) setFlashKey(k => k + 1);
+    prev.current = mult;
+  }, [mult]);
+
+  const active = mult > 1;
+  const activeColor = TONE_COLOR[tone];
+
+  return (
+    <div className="flex items-center gap-1 text-xs font-mono leading-none">
+      <span className="text-gray-600">{label}</span>
+      <span
+        key={flashKey}
+        className={`font-bold ${active ? `${activeColor} ${flashKey ? 'animate-flash' : ''}` : 'text-gray-700'}`}
+      >
+        {mult}×
+      </span>
+    </div>
+  );
+}
+
+export function SurviveHUD({ score, combo, multiplier, goldenMode, goldenTimeLeft, accMult, wpmMult, diffMult, freezeLeft }: Props) {
   return (
     <div className="relative flex items-center justify-between mb-3 px-1">
       {/* Score */}
@@ -28,8 +61,16 @@ export function SurviveHUD({ score, combo, multiplier, goldenMode, goldenTimeLef
         )}
       </div>
 
-      {/* Golden mode indicator */}
-      <div className="min-w-[60px] text-right">
+      {/* Live wpm / accuracy multipliers + golden indicator */}
+      <div className="flex items-center gap-3">
+        <MultBadge label="wpm" mult={wpmMult} tone="sky" />
+        <MultBadge label="acc" mult={accMult} tone="green" />
+        <MultBadge label="diff" mult={diffMult} tone="amber" />
+        {freezeLeft > 0 && (
+          <span className="text-xs font-mono text-sky-300 font-bold animate-pulse">
+            ❄ {freezeLeft}s
+          </span>
+        )}
         {goldenMode && (
           <span className="text-xs font-mono text-yellow-400 font-bold animate-pulse">
             ✦ {goldenTimeLeft}s

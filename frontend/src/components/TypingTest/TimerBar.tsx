@@ -11,13 +11,14 @@ interface Props {
   gameMode: GameMode;
   wordTarget: WordCountTarget | null;
   wordsCompleted: number;
+  frozen?: boolean;
   onChangeDuration: (d: TimedMode) => void;
   onChangeMode: (m: GameMode) => void;
   onChangeWordTarget: (t: WordCountTarget) => void;
 }
 
 export function TimerBar({
-  testState, timeLeft, duration, gameMode, wordTarget, wordsCompleted,
+  testState, timeLeft, duration, gameMode, wordTarget, wordsCompleted, frozen,
   onChangeDuration, onChangeMode, onChangeWordTarget,
 }: Props) {
   if (testState === 'running') {
@@ -37,11 +38,14 @@ export function TimerBar({
     if (gameMode === 'survive') {
       const urgent = timeLeft <= 5;
       const warning = timeLeft <= 10;
+      // Frozen overrides urgency coloring — the timer reads as iced over.
+      const timerColor = frozen
+        ? 'text-sky-300 animate-pulse'
+        : urgent ? 'text-red-400 animate-pulse' : warning ? 'text-orange-400' : 'text-yellow-400';
       return (
-        <div className="flex justify-center mb-6">
-          <span className={`text-3xl font-mono font-bold transition-colors ${
-            urgent ? 'text-red-400 animate-pulse' : warning ? 'text-orange-400' : 'text-yellow-400'
-          }`}>
+        <div className="flex justify-center items-center gap-2 mb-6">
+          {frozen && <span className="text-2xl text-sky-300 animate-pulse">❄</span>}
+          <span className={`text-3xl font-mono font-bold transition-colors ${timerColor}`}>
             {timeLeft}
           </span>
         </div>
