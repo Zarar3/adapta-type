@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { StatsBar } from './StatsBar';
 import { WpmGraph } from './WpmGraph';
+import { BigramHeatmap } from './BigramHeatmap';
 import { getSlowPatterns, getSessionCount, loadStrugglingPatterns } from '../../lib/ngramTracker';
 import type { TestResults, TimedMode } from '../../types';
 
@@ -147,6 +148,8 @@ export function ResultsScreen({ results, focusedPattern, onRestart, onPracticePa
           </div>
         );
       })()}
+
+      {sessionCount >= 3 && <BigramHeatmap />}
 
       <div className="flex justify-center">
         <button

@@ -247,4 +247,18 @@ function loadStrugglingMap(): StrugglingMap {
   return loadStrugglingPatterns();
 }
 
+const ACTIVE_NGRAMS_KEY = 'adapta-type-active-ngrams';
+
+export function saveActiveNgrams(ngrams: Record<string, number>): void {
+  try { localStorage.setItem(ACTIVE_NGRAMS_KEY, JSON.stringify(ngrams)); } catch { /* silent */ }
+}
+
+export function loadActiveNgrams(): Record<string, number> {
+  try { return JSON.parse(localStorage.getItem(ACTIVE_NGRAMS_KEY) ?? '{}'); } catch { return {}; }
+}
+
+export function clearActiveNgrams(): void {
+  try { localStorage.removeItem(ACTIVE_NGRAMS_KEY); } catch { /* silent */ }
+}
+
 export { ERROR_MIN, ERROR_RATE_MIN };

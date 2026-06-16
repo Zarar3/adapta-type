@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { generateLine, generateWord, hasSufficientCoverage } from '../lib/wordSelector';
-import { updateNgramStats, promoteNgrams, saveTimingToStorage, loadStoredTiming, getSlowPatterns, getFlaggedSlowKeys, incrementSessionCount, updateStrugglingPatterns, markPatternPracticed } from '../lib/ngramTracker';
+import { updateNgramStats, promoteNgrams, saveTimingToStorage, loadStoredTiming, getSlowPatterns, getFlaggedSlowKeys, incrementSessionCount, updateStrugglingPatterns, markPatternPracticed, saveActiveNgrams, loadActiveNgrams, clearActiveNgrams } from '../lib/ngramTracker';
 import type { NgramStats, StoredTiming } from '../lib/ngramTracker';
 import { calcWpm, calcRawWpm, calcAccuracy } from '../lib/statsCalculator';
 import type { CharState, TestState, TimedMode, WpmDataPoint, TestResults, DifficultyChange } from '../types';
@@ -29,6 +29,7 @@ interface EngineState {
   slowNgramKeys: Record<string, true>;    // ngrams seeded from cross-session timing data
   ngramStreaks: Record<string, number>;   // consecutive correct encounters per n-gram
   ngramGraduated: Record<string, number>; // patterns cleared during this test
+  ngramAges: Record<string, number>;      // words typed since each ngram was promoted
   ngramStats: NgramStats;                 // per-keystroke bigram/trigram accuracy tally
   ngramDisplayOrder: string[];            // up to 5 error-detected patterns currently shown in chips
   ngramWaitQueue: string[];               // promoted but waiting for a display slot
@@ -112,17 +113,20 @@ function buildInitialState(duration: TimedMode): EngineState {
   const slowPatterns = getSlowPatterns();
   const slowNgrams = Object.fromEntries(slowPatterns.map(p => [p.ng, 1]));
   const slowNgramKeys = Object.fromEntries(slowPatterns.map(p => [p.ng, true as const]));
+  const persistedNgrams = loadActiveNgrams();
+  const mergedNgrams = { ...persistedNgrams, ...slowNgrams };
   return {
     testState: 'idle',
     duration,
     timeLeft: duration === 'infinite' ? 0 : duration,
-    line: makeLineData(generateLine(slowNgrams, 3, 1)),
+    line: makeLineData(generateLine(mergedNgrams, 3, 1)),
     currentWord: 0,
     currentChar: 0,
-    ngrams: slowNgrams,
+    ngrams: mergedNgrams,
     slowNgramKeys,
     ngramStreaks: {},
     ngramGraduated: {},
+    ngramAges: {},
     ngramStats: {},
     ngramDisplayOrder: [],
     ngramWaitQueue: [],
@@ -194,6 +198,7 @@ export function useTypingEngine() {
     // Persist per-bigram timing and struggling patterns to localStorage
     saveTimingToStorage(s.ngramStats);
     updateStrugglingPatterns(s.ngramStats, s.ngramGraduated);
+    saveActiveNgrams(s.ngrams);
     incrementSessionCount();
     storedTimingRef.current = loadStoredTiming();
 
@@ -369,6 +374,43 @@ export function useTypingEngine() {
           }
         }
 
+        // N-gram weight decay — silently expire patterns idle for too long
+        const DECAY_THRESHOLD = 40;
+        const updatedAges: Record<string, number> = {};
+        for (const ng of Object.keys(updatedNgrams)) {
+          updatedAges[ng] = (next.ngramAges[ng] ?? 0) + 1;
+        }
+        for (const ng of newlyPromoted) {
+          updatedAges[ng] = 0;
+        }
+        const erroredThisWord = new Set(
+          Object.entries(promoted)
+            .filter(([ng]) => {
+              const before = next.ngramStats[ng];
+              const after = updatedStats[ng];
+              return after && before && after.errors > before.errors;
+            })
+            .map(([ng]) => ng)
+        );
+        const agedOutNgrams = new Set<string>();
+        for (const [ng, age] of Object.entries(updatedAges)) {
+          if (age > DECAY_THRESHOLD && !erroredThisWord.has(ng)) {
+            agedOutNgrams.add(ng);
+            delete updatedAges[ng];
+            const dIdx = displayOrder.indexOf(ng);
+            if (dIdx !== -1) {
+              displayOrder.splice(dIdx, 1);
+              if (waitQueue.length > 0) displayOrder.push(waitQueue.shift()!);
+            }
+            const qIdx = waitQueue.indexOf(ng);
+            if (qIdx !== -1) waitQueue.splice(qIdx, 1);
+          }
+        }
+        for (const ng of agedOutNgrams) {
+          delete updatedNgrams[ng];
+          delete updatedStreaks[ng];
+        }
+
         // Always slide: completed word drops off, queued word moves to position 0, new word fills position 1
         const lineNgrams = next.focusedPattern
           ? { [next.focusedPattern]: 5 }
@@ -380,6 +422,7 @@ export function useTypingEngine() {
           ngrams: updatedNgrams,
           ngramStreaks: updatedStreaks,
           ngramGraduated: updatedGraduated,
+          ngramAges: updatedAges,
           ngramStats: updatedStats,
           ngramDisplayOrder: displayOrder,
           ngramWaitQueue: waitQueue,
@@ -441,6 +484,7 @@ export function useTypingEngine() {
 
   const reset = useCallback(() => {
     stopTicker();
+    clearActiveNgrams();
     secondCountRef.current = 0;
     startTimeRef.current = null;
     setState(buildInitialState(duration));
@@ -448,6 +492,7 @@ export function useTypingEngine() {
 
   const changeDuration = useCallback((d: TimedMode) => {
     stopTicker();
+    clearActiveNgrams();
     setDuration(d);
     setState(buildInitialState(d));
   }, [stopTicker]);
