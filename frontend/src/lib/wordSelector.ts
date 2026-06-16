@@ -26,6 +26,29 @@ const FINGER: Record<string, number> = {
 
 const SAME_FINGER_PENALTY = 2.5;
 
+// Keyboard geometry for the "stretch" penalty: how far the finger travels
+// between consecutive keys. Letters only — non-letters fall back to home-row middle.
+// 0 = bottom row, 1 = home row, 2 = top row
+const KEY_ROW: Record<string, number> = {
+  z: 0, x: 0, c: 0, v: 0, b: 0, n: 0, m: 0,
+  a: 1, s: 1, d: 1, f: 1, g: 1, h: 1, j: 1, k: 1, l: 1,
+  q: 2, w: 2, e: 2, r: 2, t: 2, y: 2, u: 2, i: 2, o: 2, p: 2,
+};
+
+// Column 0-9, left to right across the board
+const KEY_COL: Record<string, number> = {
+  q: 0, a: 0, z: 0,
+  w: 1, s: 1, x: 1,
+  e: 2, d: 2, c: 2,
+  r: 3, f: 3, v: 3,
+  t: 4, g: 4, b: 4,
+  y: 5, h: 5, n: 5,
+  u: 6, j: 6, m: 6,
+  i: 7, k: 7,
+  o: 8, l: 8,
+  p: 9,
+};
+
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -39,18 +62,29 @@ function wordTypingScore(word: string): number {
   if (word.length === 0) return 0;
   let keyTotal = 0;
   for (let i = 0; i < word.length; i++) {
-    keyTotal += KEY_SCORE[word[i]] ?? 1.5;
-    if (
-      i > 0 &&
-      FINGER[word[i]] !== undefined &&
-      FINGER[word[i - 1]] !== undefined &&
-      FINGER[word[i]] === FINGER[word[i - 1]]
-    ) {
-      keyTotal += SAME_FINGER_PENALTY;
+    const ch = word[i];
+    keyTotal += KEY_SCORE[ch] ?? 1.5;
+    if (i > 0) {
+      const prev = word[i - 1];
+      if (
+        FINGER[ch] !== undefined &&
+        FINGER[prev] !== undefined &&
+        FINGER[ch] === FINGER[prev]
+      ) {
+        keyTotal += SAME_FINGER_PENALTY;
+      }
+      // Stretch penalty: how far the finger reaches between consecutive keys.
+      const rowDist = Math.abs((KEY_ROW[ch] ?? 1) - (KEY_ROW[prev] ?? 1));
+      const colDist = Math.abs((KEY_COL[ch] ?? 4) - (KEY_COL[prev] ?? 4));
+      if (rowDist >= 2 || colDist >= 5) {
+        keyTotal += 1.2; // large stretch (top↔bottom row or across the board)
+      } else if (rowDist >= 1 && colDist >= 3) {
+        keyTotal += 0.6; // moderate diagonal reach
+      }
     }
   }
-  // 60% key difficulty (sum), 40% word length — so harder AND longer words rank higher
-  return keyTotal * 0.6 + word.length * 0.4;
+  // 55% key+stretch difficulty (sum), 45% word length — so harder AND longer words rank higher
+  return keyTotal * 0.55 + word.length * 0.45;
 }
 
 // Use only the most common words for normal play; full list is available for pattern fallback
