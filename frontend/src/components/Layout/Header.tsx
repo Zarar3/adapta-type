@@ -1,14 +1,15 @@
 interface Props {
-  view: 'typing' | 'wall';
+  view: 'typing' | 'wall' | 'race';
   onToggleView: () => void;
   onLogoClick: () => void;
   soundEnabled: boolean;
   onToggleSound: () => void;
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
+  onCreateRoom: () => void;
 }
 
-export function Header({ view, onToggleView, onLogoClick, soundEnabled, onToggleSound, theme, onToggleTheme }: Props) {
+export function Header({ view, onToggleView, onLogoClick, soundEnabled, onToggleSound, theme, onToggleTheme, onCreateRoom }: Props) {
   return (
     <header className="flex items-center justify-between px-4 py-4 sm:px-8 sm:py-5">
       <button onClick={onLogoClick} className="text-2xl font-bold tracking-tight text-yellow-400 hover:opacity-80 transition-opacity">
@@ -51,6 +52,17 @@ export function Header({ view, onToggleView, onLogoClick, soundEnabled, onToggle
                 d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
             </svg>
           )}
+        </button>
+
+        <button
+          onClick={onCreateRoom}
+          title="multiplayer race"
+          className={`transition-colors ${view === 'race' ? 'text-yellow-400' : 'text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300'}`}
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
         </button>
 
         <button

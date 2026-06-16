@@ -3,6 +3,7 @@ import { Header } from './components/Layout/Header';
 import { TypingArea } from './components/TypingTest/TypingArea';
 import { ResultsScreen } from './components/Results/ResultsScreen';
 import { PatternWall } from './components/PatternWall/PatternWall';
+import { RaceRoom } from './components/Race/RaceRoom';
 import { useTypingEngine } from './hooks/useTypingEngine';
 import { usePatternLibrary } from './hooks/usePatternLibrary';
 import { useSound } from './hooks/useSound';
@@ -14,10 +15,11 @@ export default function App() {
           startWordCountSession, startQuoteSession, startCustomSession } = useTypingEngine();
   const { library, addFromSession, markCompleted, recordFocusedSession } = usePatternLibrary();
   const { enabled: soundEnabled, toggle: toggleSound, playCorrect, playWrong } = useSound();
-  const [view, setView] = useState<'typing' | 'wall'>('typing');
+  const [view, setView] = useState<'typing' | 'wall' | 'race'>('typing');
   const [gameMode, setGameMode] = useState<GameMode>('timed');
   const [wordTarget, setWordTarget] = useState<WordCountTarget>(25);
   const [customText, setCustomText] = useState('');
+  const [raceRoomId, setRaceRoomId] = useState<string | null>(null);
 
   const [theme, setTheme] = useState<'dark' | 'light'>(() =>
     (localStorage.getItem('adapta-type-theme') as 'dark' | 'light') ?? 'dark'
@@ -65,6 +67,36 @@ export default function App() {
       reset();
     }
   }, [gameMode, wordTarget, reset, startQuoteSession, startWordCountSession, pickRandomQuote]);
+
+  // Read URL params on mount (?challenge= and ?room=)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+
+    const room = params.get('room');
+    if (room) {
+      setRaceRoomId(room);
+      setView('race');
+      window.history.replaceState({}, '', window.location.pathname);
+      return;
+    }
+
+    const challenge = params.get('challenge');
+    if (challenge && challenge.length >= 2 && challenge.length <= 3) {
+      import('./lib/wordSelector').then(({ hasSufficientCoverage }) => {
+        if (hasSufficientCoverage(challenge)) {
+          startFocusedSession(challenge, 30);
+          window.history.replaceState({}, '', window.location.pathname);
+        }
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const createRoom = useCallback(() => {
+    const code = Math.random().toString(36).slice(2, 8).toUpperCase();
+    setRaceRoomId(code);
+    setView('race');
+  }, []);
 
   // Tab + Enter to restart from anywhere
   useEffect(() => {
@@ -116,10 +148,20 @@ export default function App() {
         onToggleSound={toggleSound}
         theme={theme}
         onToggleTheme={toggleTheme}
+        onCreateRoom={createRoom}
       />
 
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-6 sm:px-6 sm:py-12">
-        {view === 'wall' ? (
+        {view === 'race' && raceRoomId ? (
+          <RaceRoom
+            roomId={raceRoomId}
+            onStart={() => startWordCountSession(50)}
+            wordsCompleted={state.wordsCompleted}
+            currentWpm={state.wpmHistory.length > 0 ? state.wpmHistory[state.wpmHistory.length - 1].wpm : 0}
+            isFinished={state.testState === 'finished'}
+            onLeave={() => { setView('typing'); setRaceRoomId(null); reset(); }}
+          />
+        ) : view === 'wall' ? (
           <PatternWall library={library} onPractice={handlePracticePattern} />
         ) : state.testState === 'finished' && state.results ? (
           <ResultsScreen

@@ -6,7 +6,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.config import settings
 from app.middleware.rate_limit import limiter
-from app.routes import sessions
+from app.routes import sessions, race
 
 if settings.sentry_dsn:
     sentry_sdk.init(
@@ -22,11 +22,12 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.allowed_origin],
-    allow_methods=["POST", "GET"],
+    allow_methods=["POST", "GET", "WS"],
     allow_headers=["Content-Type"],
 )
 
 app.include_router(sessions.router)
+app.include_router(race.router)
 
 
 @app.get("/health")

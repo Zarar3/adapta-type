@@ -1,9 +1,21 @@
+import { useState } from 'react';
 import { loadStoredTiming, loadStrugglingPatterns } from '../../lib/ngramTracker';
+import type { TimedMode } from '../../types';
 
-interface TimingBar { ng: string; avgMs: number; ratio: number; }
-interface ErrorBar  { ng: string; rate: number; practiceCount: number; }
+const MODES: TimedMode[] = [15, 30, 60, 120];
 
-export function BigramHeatmap() {
+interface WeakSpot {
+  ng: string;
+  reason: 'slow' | 'error' | 'both';
+}
+
+interface Props {
+  onPracticePattern: (pattern: string, duration: TimedMode) => void;
+}
+
+export function BigramHeatmap({ onPracticePattern }: Props) {
+  const [pickingPattern, setPickingPattern] = useState<string | null>(null);
+
   const timing = loadStoredTiming();
   const struggling = loadStrugglingPatterns();
 
@@ -12,70 +24,75 @@ export function BigramHeatmap() {
   const totalCount = entries.reduce((s, [, t]) => s + t.count, 0);
   const overallAvg = totalCount > 0 ? totalMs / totalCount : 1;
 
-  const timingBars: TimingBar[] = entries
-    .map(([ng, t]) => ({ ng, avgMs: t.totalMs / t.count, ratio: (t.totalMs / t.count) / overallAvg }))
-    .sort((a, b) => b.ratio - a.ratio)
-    .slice(0, 8);
+  const slowSet = new Set(
+    entries
+      .map(([ng, t]) => ({ ng, ratio: (t.totalMs / t.count) / overallAvg }))
+      .filter(({ ratio }) => ratio >= 1.3)
+      .sort((a, b) => b.ratio - a.ratio)
+      .slice(0, 5)
+      .map(({ ng }) => ng)
+  );
 
-  const errorBars: ErrorBar[] = Object.entries(struggling)
-    .map(([ng, e]) => ({ ng, rate: e.rate, practiceCount: e.practiceCount }))
-    .sort((a, b) => b.rate - a.rate)
-    .slice(0, 8);
+  const errorSet = new Set(
+    Object.entries(struggling)
+      .sort(([, a], [, b]) => b.rate - a.rate)
+      .slice(0, 5)
+      .map(([ng]) => ng)
+  );
 
-  if (timingBars.length === 0 && errorBars.length === 0) return null;
+  const allPatterns = new Set([...slowSet, ...errorSet]);
+  if (allPatterns.size === 0) return null;
 
-  const barColor = (ratio: number) =>
-    ratio >= 2.0 ? '#f87171'
-    : ratio >= 1.5 ? '#fb923c'
-    : ratio >= 1.0 ? '#facc15'
-    : '#4ade80';
+  const spots: WeakSpot[] = [...allPatterns].map(ng => ({
+    ng,
+    reason: slowSet.has(ng) && errorSet.has(ng) ? 'both' : slowSet.has(ng) ? 'slow' : 'error',
+  }));
+
+  const label = (reason: WeakSpot['reason']) => {
+    if (reason === 'both') return 'slow and often mistyped';
+    if (reason === 'slow') return 'takes you longer to type';
+    return 'you often mistype this';
+  };
 
   return (
     <div className="bg-gray-100 dark:bg-gray-900 rounded-lg p-4 sm:p-6 mb-8">
-      <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-4">bigram profile</h3>
+      <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-4">
+        weak spots <span className="text-gray-400 dark:text-gray-600 font-normal">(all time)</span>
+      </h3>
 
-      {timingBars.length > 0 && (
-        <div className="mb-6">
-          <p className="text-xs text-gray-400 dark:text-gray-600 mb-3">slowest sequences (vs your average)</p>
-          <div className="space-y-1.5">
-            {timingBars.map(({ ng, ratio }) => (
-              <div key={ng} className="flex items-center gap-3">
-                <span className="font-mono text-sm w-8 text-gray-600 dark:text-gray-400 text-right">{ng}</span>
-                <div className="flex-1 bg-gray-200 dark:bg-gray-800 rounded-full h-2">
-                  <div
-                    className="h-2 rounded-full transition-all"
-                    style={{
-                      width: `${Math.min(ratio / 3, 1) * 100}%`,
-                      backgroundColor: barColor(ratio),
-                    }}
-                  />
-                </div>
-                <span className="text-xs font-mono text-gray-500 w-10 text-right">{ratio.toFixed(1)}×</span>
+      <div className="space-y-2">
+        {spots.map(({ ng, reason }) => (
+          <div key={ng}>
+            {pickingPattern === ng ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-yellow-400/15 border border-yellow-400/40 flex-wrap">
+                <span className="font-mono text-yellow-300 text-sm">{ng}</span>
+                <span className="text-gray-400 dark:text-gray-600 text-xs mx-1">→</span>
+                {MODES.map(m => (
+                  <button
+                    key={m}
+                    onClick={() => { onPracticePattern(ng, m); setPickingPattern(null); }}
+                    className="px-2 py-0.5 rounded text-xs font-mono bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-yellow-400 hover:text-gray-900 transition-colors"
+                  >
+                    {m}s
+                  </button>
+                ))}
+                <button onClick={() => setPickingPattern(null)} className="text-xs text-gray-400 dark:text-gray-700 hover:text-gray-500 ml-1">✕</button>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {errorBars.length > 0 && (
-        <div>
-          <p className="text-xs text-gray-400 dark:text-gray-600 mb-3">highest error rates</p>
-          <div className="space-y-1.5">
-            {errorBars.map(({ ng, rate }) => (
-              <div key={ng} className="flex items-center gap-3">
-                <span className="font-mono text-sm w-8 text-gray-600 dark:text-gray-400 text-right">{ng}</span>
-                <div className="flex-1 bg-gray-200 dark:bg-gray-800 rounded-full h-2">
-                  <div
-                    className="h-2 rounded-full bg-red-400 transition-all"
-                    style={{ width: `${Math.min(rate, 1) * 100}%` }}
-                  />
-                </div>
-                <span className="text-xs font-mono text-gray-500 w-10 text-right">{Math.round(rate * 100)}%</span>
+            ) : (
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setPickingPattern(ng)}
+                  className="px-3 py-1.5 rounded font-mono text-sm bg-yellow-400/10 border border-yellow-400/20 text-yellow-300 hover:bg-yellow-400/25 hover:border-yellow-400/40 transition-colors shrink-0"
+                >
+                  {ng}
+                </button>
+                <span className="text-xs text-gray-400 dark:text-gray-600">{label(reason)}</span>
+                <span className="text-xs text-gray-500 dark:text-gray-700 ml-auto hidden sm:block">click to practice</span>
               </div>
-            ))}
+            )}
           </div>
-        </div>
-      )}
+        ))}
+      </div>
     </div>
   );
 }
