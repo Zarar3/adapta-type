@@ -11,29 +11,56 @@ interface Props {
   gameMode: GameMode;
   wordTarget: WordCountTarget | null;
   wordsCompleted: number;
+  /** 0–1 share of the target text typed so far; null when the mode has no fixed length. */
+  progress?: number | null;
   frozen?: boolean;
   onChangeDuration: (d: TimedMode) => void;
   onChangeMode: (m: GameMode) => void;
   onChangeWordTarget: (t: WordCountTarget) => void;
 }
 
+function ProgressBar({ value }: { value: number }) {
+  return (
+    <div className="w-full h-1.5 rounded-full bg-gray-200 dark:bg-gray-800 overflow-hidden">
+      <div
+        className="h-full rounded-full bg-yellow-400 transition-[width] duration-100 ease-out"
+        style={{ width: `${Math.min(Math.max(value, 0), 1) * 100}%` }}
+      />
+    </div>
+  );
+}
+
 export function TimerBar({
-  testState, timeLeft, duration, gameMode, wordTarget, wordsCompleted, frozen,
+  testState, timeLeft, duration, gameMode, wordTarget, wordsCompleted, progress, frozen,
   onChangeDuration, onChangeMode, onChangeWordTarget,
 }: Props) {
   if (testState === 'running') {
     if (gameMode === 'words') {
       return (
-        <div className="flex justify-center mb-6">
-          <span className="text-lg font-mono text-gray-500 dark:text-gray-400">
-            <span className="text-yellow-400 font-bold">{wordsCompleted}</span>
-            <span className="text-gray-600 dark:text-gray-500"> / {wordTarget}</span>
-          </span>
+        <div className="w-full max-w-md mx-auto mb-6">
+          <div className="flex justify-center mb-2">
+            <span className="text-lg font-mono text-gray-500 dark:text-gray-400">
+              <span className="text-yellow-400 font-bold">{wordsCompleted}</span>
+              <span className="text-gray-600 dark:text-gray-500"> / {wordTarget}</span>
+            </span>
+          </div>
+          <ProgressBar value={progress ?? 0} />
         </div>
       );
     }
     if (gameMode === 'quote' || gameMode === 'custom') {
-      return null;
+      if (progress === null || progress === undefined) return null;
+      return (
+        <div className="w-full max-w-md mx-auto mb-6">
+          <div className="flex justify-center mb-2">
+            <span className="text-sm font-mono text-gray-500 dark:text-gray-400">
+              <span className="text-yellow-400 font-bold">{Math.round(progress * 100)}</span>
+              <span className="text-gray-600 dark:text-gray-500">%</span>
+            </span>
+          </div>
+          <ProgressBar value={progress} />
+        </div>
+      );
     }
     if (gameMode === 'survive') {
       const urgent = timeLeft <= 5;

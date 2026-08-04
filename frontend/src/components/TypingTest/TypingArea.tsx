@@ -42,6 +42,7 @@ interface Props {
   gameMode: GameMode;
   wordTarget: WordCountTarget | null;
   wordsCompleted: number;
+  fixedWordsTotal: number | null;
   currentQuote: Quote | null;
   customText: string;
   line: LineData;
@@ -79,7 +80,7 @@ interface ScorePopup { id: number; value: number; golden: boolean; }
 const DIFFICULTY_LABELS = ['', 'easy', 'medium', 'hard', 'expert'];
 
 export function TypingArea({
-  testState, timeLeft, duration, gameMode, wordTarget, wordsCompleted, currentQuote, customText,
+  testState, timeLeft, duration, gameMode, wordTarget, wordsCompleted, fixedWordsTotal, currentQuote, customText,
   line, currentWord, currentChar, ngramDisplayOrder, ngramStreaks, difficultyLevel, focusedPattern, showLineHint,
   correctChars, totalChars, onKeyDown, onChangeDuration, onChangeMode, onChangeWordTarget,
   onChangeCustomText, onStartCustom, onRestart, onEndTest, playCorrect, playWrong,
@@ -192,6 +193,17 @@ export function TypingArea({
     : elapsed > 0 ? calcWpm(correctChars, elapsed) : 0;
   const liveAccuracy = calcAccuracy(correctChars, totalChars);
 
+  // Share of the target text typed so far. Only modes with a fixed length have one.
+  // The partially-typed active word counts as a fraction of a word so the bar moves
+  // on every keystroke instead of jumping once per space.
+  const totalWords = gameMode === 'words' ? wordTarget : fixedWordsTotal;
+  const progress = (() => {
+    if (!totalWords || totalWords <= 0) return null;
+    const activeLen = line.words[currentWord]?.length ?? 0;
+    const charFrac = activeLen > 0 ? Math.min(currentChar / activeLen, 1) : 0;
+    return Math.min((wordsCompleted + charFrac) / totalWords, 1);
+  })();
+
   // Word flags for special word highlighting.
   // If the active word (slot 0) already had an error, it loses its special highlight.
   const wordFlags: WordFlags | null = (surviveUi && surviveState) ? (() => {
@@ -230,6 +242,7 @@ export function TypingArea({
           gameMode={gameMode}
           wordTarget={wordTarget}
           wordsCompleted={wordsCompleted}
+          progress={progress}
           frozen={(surviveState?.freezeLeft ?? 0) > 0}
           onChangeDuration={onChangeDuration}
           onChangeMode={onChangeMode}

@@ -213,6 +213,7 @@ export default function App() {
                 gameMode={gameMode}
                 wordTarget={wordTarget}
                 wordsCompleted={state.wordsCompleted}
+                fixedWordsTotal={state.fixedWords?.length ?? null}
                 currentQuote={state.currentQuote}
                 customText={customText}
                 line={state.line}
@@ -271,6 +272,7 @@ export default function App() {
             gameMode={gameMode}
             wordTarget={wordTarget}
             wordsCompleted={state.wordsCompleted}
+            fixedWordsTotal={state.fixedWords?.length ?? null}
             currentQuote={state.currentQuote}
             customText={customText}
             line={state.line}
