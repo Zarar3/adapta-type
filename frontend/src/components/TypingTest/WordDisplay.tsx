@@ -47,17 +47,12 @@ export function WordDisplay({ words, charStates, isActive, activeWord, activeCha
     caret.style.height = `${elRect.height}px`;
   }, [isActive, activeWord, activeChar, words]);
 
-  // Centering the row makes it re-flow on every completed word, since its width is the
-  // sum of three varying word widths — so the active word drifts sideways as you type.
-  // Instead the row is anchored: its left edge sits 12ch left of centre, which is where
-  // an average three-word row's left edge landed anyway, and the words flow right from
-  // there at their natural widths. The active word is now pinned, spacing stays uniform,
-  // and the row still reads as centred. `ch` needs the mono font on this element to
-  // resolve to a character width, hence font-mono/text-* here as well as on the words.
+  const lineKey = words.join('|');
+
   return (
     <div
       ref={containerRef}
-      className={`relative font-mono text-xl sm:text-3xl flex flex-wrap justify-center gap-x-4 sm:gap-x-6 gap-y-3 sm:gap-y-4 sm:flex-nowrap sm:justify-start sm:ml-[calc(50%-12ch)] transition-opacity duration-150 leading-relaxed ${isActive ? 'opacity-100' : 'opacity-30'}`}
+      className={`relative flex flex-wrap justify-center gap-x-4 sm:gap-x-6 gap-y-3 sm:gap-y-4 transition-opacity duration-150 leading-relaxed ${isActive ? 'opacity-100' : 'opacity-30'}`}
     >
       {isActive && (
         <div
@@ -68,16 +63,17 @@ export function WordDisplay({ words, charStates, isActive, activeWord, activeCha
       )}
 
       {words.map((word, wi) => {
-        // Position 2 gets a content-based key so it remounts when a new word arrives, triggering the entry animation.
-        // Positions 0 and 1 use stable slot keys so they update in-place without animation.
-        const wordKey = wi === 2 ? `word-2-${word}` : `word-${wi}`;
+        // The line is replaced as a unit, so every word is keyed to the line's contents:
+        // keys are stable while you type through it (no remount, no animation), and all
+        // change together when a new line arrives, replaying the entry animation once.
+        const wordKey = `${lineKey}-${wi}`;
 
         const isGolden = wordFlags?.golden === wi;
         const isBomb   = wordFlags?.bomb === wi;
         const isFreeze = wordFlags?.freeze === wi;
         const isSpecial = isGolden || isBomb || isFreeze;
         const isCombo = (Number(isGolden) + Number(isBomb) + Number(isFreeze)) >= 2;
-        const isBombActive = isBomb && wi === 0; // bomb countdown only shown at slot 0
+        const isBombActive = isBomb && wi === activeWord; // countdown only on the word being typed
 
         // Compose styling. Text color follows a priority (bomb > golden > freeze) so it
         // stays legible; rings/glows from the other active flags layer on top, and combos
@@ -91,10 +87,8 @@ export function WordDisplay({ words, charStates, isActive, activeWord, activeCha
           <span
             key={wordKey}
             className={[
-              // shrink-0: with flex-nowrap a long word would otherwise be squeezed and
-              // break across lines mid-word.
-              'font-mono text-xl sm:text-3xl tracking-wide relative shrink-0',
-              wi === 2 ? 'animate-slide-in-right' : '',
+              'font-mono text-xl sm:text-3xl tracking-wide relative',
+              'animate-fade-in-place',
               textColor,
               glow,
               isFreeze ? 'ring-1 ring-sky-400/50 rounded px-1' : '',

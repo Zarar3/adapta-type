@@ -37,6 +37,18 @@
   animation: slide-in-right 0.15s ease-out;
 }
 
+/* Entry animation for words. Deliberately opacity-only: the caret is positioned from
+   getBoundingClientRect, so any transform on a word would be measured mid-animation
+   and leave the caret offset from the character it belongs to. */
+@keyframes fade-in-place {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.animate-fade-in-place {
+  animation: fade-in-place 0.15s ease-out;
+}
+
 @keyframes flash-scale {
   0%   { opacity: 1; transform: scale(1); }
   40%  { opacity: 0.4; transform: scale(1.4); }

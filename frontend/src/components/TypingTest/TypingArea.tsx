@@ -8,9 +8,11 @@ import { loadSurviveBest } from '../../lib/ngramTracker';
 import { accuracyScoreMult, wpmScoreMult, difficultyScoreMult } from '../../lib/surviveScoring';
 import type { TestState, TimedMode, GameMode, WordCountTarget, Quote } from '../../types';
 
-function slot(nextAt: number, completed: number): number | null {
-  const off = nextAt - completed;
-  return off >= 0 && off <= 2 ? off : null;
+// Maps an absolute word index to its position in the visible line. The active word is
+// at `activeSlot`, not always slot 0 — the caret advances through a static line.
+function slot(nextAt: number, completed: number, activeSlot: number, lineLength: number): number | null {
+  const off = nextAt - completed + activeSlot;
+  return off >= 0 && off < lineLength ? off : null;
 }
 
 export interface SurviveState {
@@ -205,15 +207,16 @@ export function TypingArea({
   })();
 
   // Word flags for special word highlighting.
-  // If the active word (slot 0) already had an error, it loses its special highlight.
+  // If the active word already had an error, it loses its special highlight.
   const wordFlags: WordFlags | null = (surviveUi && surviveState) ? (() => {
     const failed = surviveState.currentWordHadError;
-    const goldenSlot = slot(surviveState.nextGoldenWord, wordsCompleted);
-    const freezeSlot = slot(surviveState.nextFreezeWord, wordsCompleted);
+    const lineLen = line.words.length;
+    const goldenSlot = slot(surviveState.nextGoldenWord, wordsCompleted, currentWord, lineLen);
+    const freezeSlot = slot(surviveState.nextFreezeWord, wordsCompleted, currentWord, lineLen);
     return {
-      golden: goldenSlot === 0 && failed ? null : goldenSlot,
-      bomb:   surviveState.bombActive ? 0 : slot(surviveState.nextBombWord, wordsCompleted),
-      freeze: freezeSlot === 0 && failed ? null : freezeSlot,
+      golden: goldenSlot === currentWord && failed ? null : goldenSlot,
+      bomb:   surviveState.bombActive ? currentWord : slot(surviveState.nextBombWord, wordsCompleted, currentWord, lineLen),
+      freeze: freezeSlot === currentWord && failed ? null : freezeSlot,
       bombCountdown: surviveState.bombCountdown,
     };
   })() : null;

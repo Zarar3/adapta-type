@@ -44,6 +44,12 @@ function rescheduleSpecial(newWc: number, baseMin: number, jitter: number, other
 // and rotate in as slots free up — more than a few on screen is noise, not feedback.
 const MAX_DISPLAY_PATTERNS = 3;
 
+// Words per line. The line is static: the caret walks through it while the words stay
+// put, and a new line is only built once the last word is done. The old one-word
+// sliding window changed the row's width on every space, which re-centred it and made
+// the active word drift sideways.
+const LINE_LENGTH = 3;
+
 function streakThreshold(duration: TimedMode): number {
   if (duration === 'infinite') return 5;
   if (duration <= 15) return 3;
@@ -215,8 +221,8 @@ function buildInitialState(
     currentQuote: opts.quote ?? null,
     timeLeft: duration === 'infinite' ? 0 : duration,
     line: opts.fixedWords
-      ? makeLineData(opts.fixedWords.slice(0, 3))
-      : makeLineData(generateLine(displayNgramsForLine, 3, 1)),
+      ? makeLineData(opts.fixedWords.slice(0, LINE_LENGTH))
+      : makeLineData(generateLine(displayNgramsForLine, LINE_LENGTH, 1)),
     currentWord: 0,
     currentChar: 0,
     ngrams: mergedNgrams,
@@ -738,10 +744,25 @@ export function useTypingEngine(requireCorrectWord = false) {
           return { ...next, ...shared, ...surviveUpdates };
         }
 
-        // Fixed-word modes (quote/custom): advance window
+        // Mid-line: just move the caret to the next word. The words on screen do not
+        // change, so the row keeps its width and nothing shifts.
+        if (currentWord < line.words.length - 1) {
+          return {
+            ...next,
+            ...shared,
+            ...surviveUpdates,
+            showLineHint: false,
+            currentWord: currentWord + 1,
+            currentChar: 0,
+          };
+        }
+
+        // Last word of the line is done — everything below builds the next one.
+
+        // Fixed-word modes (quote/custom): page to the next line
         if (next.fixedWords) {
-          const nextOffset = next.fixedWordOffset + 1;
-          const fwWords = next.fixedWords.slice(nextOffset, nextOffset + 3);
+          const nextOffset = next.fixedWordOffset + LINE_LENGTH;
+          const fwWords = next.fixedWords.slice(nextOffset, nextOffset + LINE_LENGTH);
           if (fwWords.length === 0) {
             // Last word was just completed — effect will call finishTest
             return { ...next, ...shared, ...surviveUpdates, fixedWordOffset: nextOffset };
@@ -758,49 +779,35 @@ export function useTypingEngine(requireCorrectWord = false) {
           };
         }
 
-        // Regenerate stale queued words when patterns were newly promoted this word
-        let w1 = line.words[1];
-        let w2 = line.words[2];
-        if (newlyPromoted.length > 0 && displayOrder.length > 0) {
-          const hasActivePattern = (w: string) => displayOrder.some(ng => w.includes(ng));
-          let ci = next.ngramCoverageIdx;
-          if (!hasActivePattern(w1)) {
-            const excl = [...new Set([...updatedRecent, line.words[0]])];
-            w1 = generateWordContaining(displayOrder[ci % displayOrder.length], newDifficulty, excl);
-            if (displayOrder.length > 1) ci = (ci + 1) % displayOrder.length;
-          }
-          if (!hasActivePattern(w2)) {
-            const excl = [...new Set([...updatedRecent, line.words[0], w1])];
-            w2 = generateWordContaining(displayOrder[ci % displayOrder.length], newDifficulty, excl);
-          }
-        }
-
-        // Generate next word with round-robin pattern targeting
-        const excludeList = [...new Set([...updatedRecent, w1, w2])];
+        // Build the whole next line with round-robin pattern targeting. Nothing carries
+        // over from the old line, so patterns promoted mid-line take effect here rather
+        // than being spliced into words already on screen — rewriting a visible word
+        // would change its length and shift everything after it.
+        const newWords: string[] = [];
         let nextCoverageIdx = next.ngramCoverageIdx;
-        let nextWord: string;
-        if (next.focusedPattern) {
-          nextWord = generateWordContaining(next.focusedPattern, newDifficulty, excludeList);
-        } else if (displayOrder.length > 0) {
-          nextWord = generateWordContaining(
-            displayOrder[nextCoverageIdx % displayOrder.length],
-            newDifficulty,
-            excludeList,
-          );
-          nextCoverageIdx = (nextCoverageIdx + 1) % displayOrder.length;
-        } else {
-          const activeNgrams = Object.fromEntries(
-            Object.entries(updatedNgrams).filter(([ng]) => displayOrder.includes(ng))
-          );
-          nextWord = generateWord(
-            Object.keys(activeNgrams).length > 0 ? activeNgrams : updatedNgrams,
-            newDifficulty,
-            excludeList,
-            0.9,
-          );
+        for (let i = 0; i < LINE_LENGTH; i++) {
+          const excludeList = [...new Set([...updatedRecent, ...newWords])];
+          if (next.focusedPattern) {
+            newWords.push(generateWordContaining(next.focusedPattern, newDifficulty, excludeList));
+          } else if (displayOrder.length > 0) {
+            newWords.push(generateWordContaining(
+              displayOrder[nextCoverageIdx % displayOrder.length],
+              newDifficulty,
+              excludeList,
+            ));
+            nextCoverageIdx = (nextCoverageIdx + 1) % displayOrder.length;
+          } else {
+            const activeNgrams = Object.fromEntries(
+              Object.entries(updatedNgrams).filter(([ng]) => displayOrder.includes(ng))
+            );
+            newWords.push(generateWord(
+              Object.keys(activeNgrams).length > 0 ? activeNgrams : updatedNgrams,
+              newDifficulty,
+              excludeList,
+              0.9,
+            ));
+          }
         }
-
-        const newWords = [w1, w2, nextWord];
         return {
           ...next,
           ...shared,
@@ -927,7 +934,7 @@ export function useTypingEngine(requireCorrectWord = false) {
       ...base,
       focusedPattern: pattern,
       ngrams: focusNgrams,
-      line: makeLineData(generateLine(focusNgrams, 3)),
+      line: makeLineData(generateLine(focusNgrams, LINE_LENGTH)),
     });
   }, [stopTicker]);
 
