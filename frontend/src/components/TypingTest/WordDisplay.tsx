@@ -47,18 +47,17 @@ export function WordDisplay({ words, charStates, isActive, activeWord, activeCha
     caret.style.height = `${elRect.height}px`;
   }, [isActive, activeWord, activeChar, words]);
 
-  // Three fixed-width slots (sm and up) rather than a content-sized centered row.
-  // Word lengths vary, so a centered row re-flows every time a word is completed and the
-  // active word jumps sideways. Fixed slots keep positions 0 and 1 pinned so the eye
-  // always returns to the same place; an overlong word overflows its slot instead of
-  // widening it, since grid-cols-3 columns are minmax(0, 1fr).
+  // Centering the row makes it re-flow on every completed word, since its width is the
+  // sum of three varying word widths — so the active word drifts sideways as you type.
+  // Instead the row is anchored: its left edge sits 12ch left of centre, which is where
+  // an average three-word row's left edge landed anyway, and the words flow right from
+  // there at their natural widths. The active word is now pinned, spacing stays uniform,
+  // and the row still reads as centred. `ch` needs the mono font on this element to
+  // resolve to a character width, hence font-mono/text-* here as well as on the words.
   return (
     <div
       ref={containerRef}
-      className={`relative font-mono text-xl sm:text-3xl leading-relaxed transition-opacity duration-150
-                  flex flex-wrap justify-center gap-x-4 gap-y-3
-                  sm:grid sm:grid-cols-3 sm:gap-x-6 sm:gap-y-0 sm:w-full sm:max-w-[46ch] sm:mx-auto
-                  ${isActive ? 'opacity-100' : 'opacity-30'}`}
+      className={`relative font-mono text-xl sm:text-3xl flex flex-wrap justify-center gap-x-4 sm:gap-x-6 gap-y-3 sm:gap-y-4 sm:flex-nowrap sm:justify-start sm:ml-[calc(50%-12ch)] transition-opacity duration-150 leading-relaxed ${isActive ? 'opacity-100' : 'opacity-30'}`}
     >
       {isActive && (
         <div
@@ -89,65 +88,64 @@ export function WordDisplay({ words, charStates, isActive, activeWord, activeCha
           : isGolden ? 'drop-shadow-[0_0_8px_rgba(250,204,21,0.8)]' : '';
 
         return (
-          <div key={wordKey} className="flex justify-center sm:justify-start min-w-0">
-            <span
-              className={[
-                'tracking-wide relative whitespace-nowrap',
-                wi === 2 ? 'animate-slide-in-right' : '',
-                textColor,
-                glow,
-                isFreeze ? 'ring-1 ring-sky-400/50 rounded px-1' : '',
-                isCombo ? 'rounded px-1 ring-2 ring-fuchsia-400/70 bg-fuchsia-400/5 drop-shadow-[0_0_10px_rgba(217,70,239,0.6)]' : '',
-              ].filter(Boolean).join(' ')}
-            >
-              {/* Special-word badge: icons for each active effect, plus bomb countdown */}
-              {isSpecial && (
-                <span className="absolute -top-5 left-1/2 -translate-x-1/2 flex items-center gap-1 text-xs font-mono font-bold select-none whitespace-nowrap">
-                  {isGolden && <span className="text-yellow-400">✦</span>}
-                  {isFreeze && <span className="text-sky-300">❄</span>}
-                  {isBomb && <span className="text-red-400 animate-pulse">✸</span>}
-                  {isBombActive && wordFlags!.bombCountdown > 0 && (
-                    <span className="text-red-400 animate-pulse">{wordFlags!.bombCountdown}s</span>
-                  )}
-                </span>
-              )}
-              {word.split('').map((char, ci) => (
-                <span
-                  key={ci}
-                  ref={el => {
-                    const k = `${wi}-${ci}`;
-                    if (el) charRefs.current.set(k, el);
-                    else charRefs.current.delete(k);
-                  }}
-                  className={
-                  // Untyped chars in special words inherit the word's glow color.
-                  // Typed chars always show correct/incorrect feedback regardless.
-                  (isGolden || isBomb || isFreeze) && (charStates[wi]?.[ci] ?? 'untyped') === 'untyped'
-                    ? undefined
-                    : stateClass[charStates[wi]?.[ci] ?? 'untyped']
-                }
-                >
-                  {char}
-                </span>
-              ))}
-              {/* Zero-width ghost span gives the caret a valid position after the last character */}
+          <span
+            key={wordKey}
+            className={[
+              // shrink-0: with flex-nowrap a long word would otherwise be squeezed and
+              // break across lines mid-word.
+              'font-mono text-xl sm:text-3xl tracking-wide relative shrink-0',
+              wi === 2 ? 'animate-slide-in-right' : '',
+              textColor,
+              glow,
+              isFreeze ? 'ring-1 ring-sky-400/50 rounded px-1' : '',
+              isCombo ? 'rounded px-1 ring-2 ring-fuchsia-400/70 bg-fuchsia-400/5 drop-shadow-[0_0_10px_rgba(217,70,239,0.6)]' : '',
+            ].filter(Boolean).join(' ')}
+          >
+            {/* Special-word badge: icons for each active effect, plus bomb countdown */}
+            {isSpecial && (
+              <span className="absolute -top-5 left-1/2 -translate-x-1/2 flex items-center gap-1 text-xs font-mono font-bold select-none whitespace-nowrap">
+                {isGolden && <span className="text-yellow-400">✦</span>}
+                {isFreeze && <span className="text-sky-300">❄</span>}
+                {isBomb && <span className="text-red-400 animate-pulse">✸</span>}
+                {isBombActive && wordFlags!.bombCountdown > 0 && (
+                  <span className="text-red-400 animate-pulse">{wordFlags!.bombCountdown}s</span>
+                )}
+              </span>
+            )}
+            {word.split('').map((char, ci) => (
               <span
+                key={ci}
                 ref={el => {
-                  const k = `${wi}-${word.length}`;
+                  const k = `${wi}-${ci}`;
                   if (el) charRefs.current.set(k, el);
                   else charRefs.current.delete(k);
                 }}
-                aria-hidden="true"
-              >&#8203;</span>
-            </span>
-          </div>
+                className={
+                // Untyped chars in special words inherit the word's glow color.
+                // Typed chars always show correct/incorrect feedback regardless.
+                (isGolden || isBomb || isFreeze) && (charStates[wi]?.[ci] ?? 'untyped') === 'untyped'
+                  ? undefined
+                  : stateClass[charStates[wi]?.[ci] ?? 'untyped']
+              }
+              >
+                {char}
+              </span>
+            ))}
+            {/* Zero-width ghost span gives the caret a valid position after the last character */}
+            <span
+              ref={el => {
+                const k = `${wi}-${word.length}`;
+                if (el) charRefs.current.set(k, el);
+                else charRefs.current.delete(k);
+              }}
+              aria-hidden="true"
+            >&#8203;</span>
+          </span>
         );
       })}
 
-      {/* Absolutely positioned so it never becomes a fourth slot — otherwise it would
-          claim a grid cell and shift the words when it disappears. */}
       {showHint && (
-        <span className="absolute top-full inset-x-0 mt-1 flex flex-col items-center pointer-events-none">
+        <span className="inline-flex flex-col items-center self-center -ml-4">
           <span className="text-yellow-400 text-2xl leading-none animate-bounce-x">→</span>
           <span className="text-gray-400 dark:text-gray-600 text-xs mt-0.5">space</span>
         </span>
