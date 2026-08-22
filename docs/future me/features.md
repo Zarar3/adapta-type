@@ -35,8 +35,12 @@ Auto-adjusting difficulty (levels 1–4) based on your performance within a test
 The main adaptive feature. Tracks bigrams (2-char) and trigrams (3-char) on every keypress.
 
 **Promotion thresholds:**
+- `SEEN_MIN = 4` — needs enough encounters before the pattern can be judged at all
 - `ERROR_MIN = 2` — needs at least 2 errors on a pattern
-- `ERROR_RATE_MIN = 10%` — errors must be ≥10% of all encounters
+- `ERROR_RATE_MIN = 15%` — errors must be ≥15% of all encounters
+
+At most `MAX_DISPLAY_PATTERNS = 3` (useTypingEngine.ts) occupy chip slots at once; the rest
+wait silently in `ngramWaitQueue` and rotate in as patterns graduate.
 
 When a pattern crosses both thresholds at word completion, it's **promoted** to the active focus set (`ngrams` map). The word generator then forces words containing that pattern.
 

@@ -36,11 +36,13 @@ Things that were tried, changed, or deliberately chosen in a non-obvious way. Fu
 
 ---
 
-## Why ERROR_RATE_MIN is 10% not higher
+## Why the promotion gates were tightened back to 15%
 
-**Decision:** The minimum error rate for promotion is 10%.
+**Decision (2026-08-04):** Promotion now requires `seen >= 4 AND errors >= 2 AND errors/seen >= 15%`, and at most 3 patterns hold chip slots at once.
 
-**Reason:** Was originally higher. At 15% or 20%, many real struggles don't get caught — especially if the user types a bigram many times and gets it wrong only occasionally. 10% catches real patterns without being hypersensitive. Combined with ERROR_MIN=2, a single accidental miss doesn't trigger anything.
+**Reason:** User feedback — too many patterns lit up at once and it was overstimulating. The code had also drifted to `ERROR_MIN = 1`, so a single mistyped key spawned a chip immediately, and with no minimum sample count a bigram seen twice could qualify off two slips. `SEEN_MIN` stops the early-session flood, `ERROR_MIN = 2` stops one-off slips, and 15% means the pattern has to be missed consistently rather than occasionally.
+
+**Supersedes:** the earlier "10% not higher" decision, which argued 15%/20% missed real struggles. That trade-off is accepted: a pattern missed occasionally now waits until it's missed consistently before it takes up a slot. The results screen still lists every pattern with `errors > 0`, so nothing is hidden from the user — it just doesn't grab attention mid-test.
 
 ---
 

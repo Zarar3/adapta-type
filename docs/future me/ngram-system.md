@@ -53,7 +53,7 @@ promoteNgrams(word, stats, currentNgrams, graduated) → Record<string, number>
 ```
 
 Scans every bigram in the just-completed word. For each bigram that:
-1. Meets the error threshold (`errors >= 2 AND errors/seen >= 10%`)
+1. Meets the error threshold (`seen >= 4 AND errors >= 2 AND errors/seen >= 15%`)
 2. Is not already in `currentNgrams` (active focus)
 3. Is not in `graduated` (already mastered this run)
 
@@ -174,8 +174,10 @@ Increments `practiceCount` for that pattern in the struggling map.
 
 | Constant | Value | File |
 |---|---|---|
+| `SEEN_MIN` | 4 | ngramTracker.ts |
 | `ERROR_MIN` | 2 | ngramTracker.ts |
-| `ERROR_RATE_MIN` | 0.10 (10%) | ngramTracker.ts |
+| `ERROR_RATE_MIN` | 0.15 (15%) | ngramTracker.ts |
+| `MAX_DISPLAY_PATTERNS` | 3 | useTypingEngine.ts |
 | `MIN_TIMING_SAMPLES` | 3 | ngramTracker.ts |
 | `SLOW_MULTIPLIER` | 1.5 | ngramTracker.ts |
 | Graduation streak | 3 | useTypingEngine.ts |

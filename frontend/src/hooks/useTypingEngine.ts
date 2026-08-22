@@ -40,6 +40,10 @@ function rescheduleSpecial(newWc: number, baseMin: number, jitter: number, other
   return newWc + baseMin + Math.floor(Math.random() * jitter);
 }
 
+// How many patterns can occupy chip slots at once. The rest wait silently in the queue
+// and rotate in as slots free up — more than a few on screen is noise, not feedback.
+const MAX_DISPLAY_PATTERNS = 3;
+
 function streakThreshold(duration: TimedMode): number {
   if (duration === 'infinite') return 5;
   if (duration <= 15) return 3;
@@ -73,7 +77,7 @@ interface EngineState {
   ngramAges: Record<string, number>;      // words typed since each ngram was promoted
   ngramCoverageIdx: number;               // round-robin index into ngramDisplayOrder
   ngramStats: NgramStats;                 // per-keystroke bigram/trigram accuracy tally
-  ngramDisplayOrder: string[];            // up to 5 error-detected patterns currently shown in chips
+  ngramDisplayOrder: string[];            // up to MAX_DISPLAY_PATTERNS error-detected patterns shown in chips
   ngramWaitQueue: string[];               // promoted but waiting for a display slot
   recentWords: string[];                  // last N completed words, used to avoid repeats
   focusedPattern: string | null;          // set during a single-pattern practice session
@@ -196,8 +200,8 @@ function buildInitialState(
   const carryInPool = carryover.filter(ng => ng in mergedNgrams);
   const rest = shuffleArray(Object.keys(mergedNgrams).filter(ng => !carryInPool.includes(ng)));
   const ordered = [...carryInPool, ...rest];
-  const initialDisplay = ordered.slice(0, 5);
-  const initialQueue = ordered.slice(5);
+  const initialDisplay = ordered.slice(0, MAX_DISPLAY_PATTERNS);
+  const initialQueue = ordered.slice(MAX_DISPLAY_PATTERNS);
   const displayNgramsForLine = Object.fromEntries(initialDisplay.map(ng => [ng, mergedNgrams[ng]]));
   const surviveOffsets = gameMode === 'survive' ? shuffleInitialSurviveOffsets() : null;
   return {
@@ -576,10 +580,10 @@ export function useTypingEngine(requireCorrectWord = false) {
           }
         }
 
-        // Add newly promoted to display (up to 5) or wait queue
+        // Add newly promoted to display or wait queue
         for (const ng of newlyPromoted) {
           if (justGraduated.has(ng)) continue;
-          if (displayOrder.length < 5) {
+          if (displayOrder.length < MAX_DISPLAY_PATTERNS) {
             displayOrder.push(ng);
           } else {
             waitQueue.push(ng);

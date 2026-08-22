@@ -40,13 +40,20 @@ export function updateNgramStats(
   return next;
 }
 
-const ERROR_MIN = 1;
-const ERROR_RATE_MIN = 0.10;
+// Promotion gates. These are deliberately strict: every promoted pattern costs the user
+// a chip on screen and biases the words they get, so a pattern has to look like a real
+// habit before it earns that. A one-off slip, or a couple of misses on a pattern that has
+// barely been seen, is noise.
+const SEEN_MIN = 4;          // needs enough encounters to judge at all
+const ERROR_MIN = 2;         // a single mistyped key is a slip, not a pattern
+const ERROR_RATE_MIN = 0.15; // and it has to be missing consistently, not occasionally
 const MIN_TIMING_SAMPLES = 3;
 const SLOW_MULTIPLIER = 1.5;
 
 function meetsErrorThreshold(entry: { seen: number; errors: number }): boolean {
-  return entry.errors >= ERROR_MIN && entry.errors / entry.seen >= ERROR_RATE_MIN;
+  return entry.seen >= SEEN_MIN
+    && entry.errors >= ERROR_MIN
+    && entry.errors / entry.seen >= ERROR_RATE_MIN;
 }
 
 export function saveTimingToStorage(stats: NgramStats): void {
