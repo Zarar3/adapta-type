@@ -1,0 +1,37 @@
+#!/bin/sh
+#
+# Bumps the frontend patch version on every commit, so the version shown in the
+# corner of the app always identifies a distinct build.
+#
+# Why commit-time and not push-time: git resolves which commits a push will send
+# BEFORE pre-push runs, so a bump committed there lands in the following push and
+# the deployed version is permanently one behind. Bumping here makes the version
+# part of the commit itself.
+#
+# Enabled with: git config core.hooksPath .githooks
+set -e
+
+GIT_DIR=$(git rev-parse --git-dir)
+
+# Leave history alone while it is being replayed or merged — the version belongs to
+# the original commit, and bumping here would cause conflicts on every rebase.
+if [ -d "$GIT_DIR/rebase-merge" ] || [ -d "$GIT_DIR/rebase-apply" ] || [ -f "$GIT_DIR/MERGE_HEAD" ]; then
+  exit 0
+fi
+
+PKG="$(git rev-parse --show-toplevel)/frontend/package.json"
+[ -f "$PKG" ] || exit 0
+
+node -e '
+const fs = require("fs");
+const path = process.argv[1];
+const pkg = JSON.parse(fs.readFileSync(path, "utf8"));
+const parts = String(pkg.version || "0.0.0").split(".").map(n => parseInt(n, 10) || 0);
+while (parts.length < 3) parts.push(0);
+parts[2] += 1;
+pkg.version = parts.slice(0, 3).join(".");
+fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + "\n");
+process.stdout.write("version -> " + pkg.version + "\n");
+' "$PKG"
+
+git add "$PKG"

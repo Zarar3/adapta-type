@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Header } from './components/Layout/Header';
+import { HelpModal } from './components/Layout/HelpModal';
+import { BuildStamp } from './components/Layout/BuildStamp';
 import { TypingArea } from './components/TypingTest/TypingArea';
 import { ResultsScreen } from './components/Results/ResultsScreen';
 import { PatternWall } from './components/PatternWall/PatternWall';
@@ -25,6 +27,7 @@ export default function App() {
   const [gameMode, setGameMode] = useState<GameMode>('timed');
   const [wordTarget, setWordTarget] = useState<WordCountTarget>(25);
   const [customText, setCustomText] = useState('');
+  const [helpOpen, setHelpOpen] = useState(false);
   const [raceRoomId, setRaceRoomId] = useState<string | null>(null);
   const [raceWordTarget, setRaceWordTarget] = useState(30);
 
@@ -190,7 +193,12 @@ export default function App() {
         theme={theme}
         onToggleTheme={toggleTheme}
         onCreateRoom={createRoom}
+        onOpenHelp={() => setHelpOpen(true)}
       />
+
+      <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
+
+      <BuildStamp />
 
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-6 sm:px-6 sm:py-12">
         {view === 'race' && raceRoomId ? (
